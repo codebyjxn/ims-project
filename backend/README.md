@@ -15,15 +15,14 @@ backend/
 └── README.md                  # This file
 ```
 
-## Quick Start
+## Running with Docker Compose
 
-### Development Environment
+### Development Mode
+
+To run the application in development mode with hot reloading:
 
 ```bash
-# Navigate to backend directory
-cd backend
-
-# Start development environment
+# Start all services in development mode
 docker-compose up
 
 # Or run in background
@@ -33,84 +32,24 @@ docker-compose up -d
 This will start:
 - **Backend API**: http://localhost:4000
 - **PostgreSQL**: localhost:5432
-- **MongoDB**: localhost:27017  
+- **MongoDB**: localhost:27017
 - **pgAdmin**: http://localhost:5050
 
-### Production Environment
+### Production Mode
+
+To run the application in production mode:
 
 ```bash
-# Navigate to backend directory
-cd backend
-
 # Set production JWT secret
 export JWT_SECRET="your-super-secure-production-secret"
 
-# Start production environment
+# Start all services in production mode
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-## Available Endpoints
+### Environment Variables
 
-### Admin Endpoints
-- `POST /api/admin/seed` - Seed database with test data
-- `POST /api/admin/migrate` - Migrate PostgreSQL → MongoDB
-- `GET /api/admin/stats` - View database statistics
-- `GET /api/admin/health` - Health check
-- `POST /api/admin/clear` - Clear all data
-
-### User Management
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-
-### Tickets
-- `POST /api/tickets/purchase` - Purchase tickets
-- `GET /api/tickets/user/:userId` - Get user's tickets
-- `GET /api/tickets/concert/:concertId/summary` - Concert summary
-
-## Access Levels
-
-1. **Admin** - Database seeding & migration only
-2. **Organizers** - Create/manage concerts  
-3. **Fans** - Browse concerts & purchase tickets
-
-## Database Access
-
-### pgAdmin
-- **URL**: http://localhost:5050
-- **Email**: admin@admin.com
-- **Password**: admin
-
-**PostgreSQL Connection:**
-- **Host**: `postgres`
-- **Port**: `5432`
-- **Database**: `concert_booking`
-- **Username**: `postgres`
-- **Password**: `postgres`
-
-## Development
-
-### Local Development (without Docker)
-```bash
-# Install dependencies
-npm install
-
-# Set environment variables
-cp .env.example .env
-
-# Start development server
-npm run dev
-```
-
-### Building for Production
-```bash
-# Build TypeScript
-npm run build
-
-# Start production server
-npm start
-```
-
-## Environment Variables
+The application uses the following environment variables:
 
 ```env
 NODE_ENV=development
@@ -123,4 +62,36 @@ POSTGRES_DB=concert_booking
 MONGODB_URI=mongodb://mongodb:27017/concert_booking
 JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=24h
-``` 
+```
+
+For development, these are set in the `docker-compose.yml` file. For production, create a `.env` file with these variables, especially setting a secure `JWT_SECRET`.
+
+### Database Access
+
+#### pgAdmin
+- **URL**: http://localhost:5050
+- **Email**: admin@admin.com
+- **Password**: admin
+
+**PostgreSQL Connection:**
+- **Host**: `postgres`
+- **Port**: `5432`
+- **Database**: `concert_booking`
+- **Username**: `postgres`
+- **Password**: `postgres`
+
+### Stopping the Services
+
+To stop all services:
+```bash
+# Stop services
+docker-compose down
+
+# Stop services and remove volumes
+docker-compose down -v
+```
+
+## Available Endpoints
+
+### Admin Endpoints
+- `
