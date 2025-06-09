@@ -1,84 +1,142 @@
-import pool from '../lib/postgres';
+import { Pool } from 'pg';
 import mongoose from 'mongoose';
 import {
   UserModel, ConcertModel, TicketModel, ArtistModel, ArenaModel
 } from '../models/mongodb-schemas';
 
-export const migrateToMongoDB = async () => {
+const pool = new Pool({
+  user: process.env.POSTGRES_USER || 'postgres',
+  host: process.env.POSTGRES_HOST || 'localhost',
+  database: process.env.POSTGRES_DB || 'concert_booking',
+  password: process.env.POSTGRES_PASSWORD || 'password',
+  port: Number(process.env.POSTGRES_PORT) || 5432,
+});
+
+export const migrateToMongoDB = async (): Promise<{
+  users: number;
+  artists: number;
+  arenas: number;
+  concerts: number;
+  tickets: number;
+}> => {
   try {
     console.log('Starting migration from PostgreSQL to MongoDB...');
 
-    // Migrate users
-    const users = await migrateUsers();
-    console.log(`Migrated ${users} users`);
+    // Clear existing MongoDB data
+    console.log('Clearing existing MongoDB data...');
+    await Promise.all([
+      UserModel.deleteMany({}),
+      ArtistModel.deleteMany({}),
+      ArenaModel.deleteMany({}),
+      ConcertModel.deleteMany({}),
+      TicketModel.deleteMany({})
+    ]);
 
-    // Migrate artists
-    const artists = await migrateArtists();
-    console.log(`Migrated ${artists} artists`);
-
-    // Migrate venues (as arenas in MongoDB)
-    const venues = await migrateVenues();
-    console.log(`Migrated ${venues} venues/arenas`);
-
-    // Migrate concerts
-    const concerts = await migrateConcerts();
-    console.log(`Migrated ${concerts} concerts`);
-
-    // Migrate tickets
-    const tickets = await migrateTickets();
-    console.log(`Migrated ${tickets} tickets`);
+    // Migrate data in order (respecting dependencies)
+    const userCount = await migrateUsers();
+    const artistCount = await migrateArtists();
+    const arenaCount = await migrateArenas();
+    const concertCount = await migrateConcerts();
+    const ticketCount = await migrateTickets();
 
     console.log('Migration completed successfully!');
     
     return {
-      migrated: {
-        users,
-        artists,
-        venues,
-        concerts,
-        tickets
-      }
+      users: userCount,
+      artists: artistCount,
+      arenas: arenaCount,
+      concerts: concertCount,
+      tickets: ticketCount
     };
-
   } catch (error) {
-    console.error('Migration failed:', error);
+    console.error('Error during migration:', error);
     throw error;
   }
 };
 
 const migrateUsers = async (): Promise<number> => {
   try {
-    const result = await pool.query('SELECT * FROM users ORDER BY id');
-    const users = result.rows;
+    // Check if required tables exist
+    const tablesExist = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      ) as users_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'fans'
+      ) as fans_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'organizers'
+      ) as organizers_exist
+    `);
+
+    if (!tablesExist.rows[0].users_exist) {
+      console.log('Users table does not exist, skipping user migration');
+      return 0;
+    }
+
+    // Get all users
+    const usersResult = await pool.query('SELECT * FROM users ORDER BY user_id');
+    const users = usersResult.rows;
 
     for (const user of users) {
-      // Properly split username for first_name and last_name
-      const nameParts = user.username.split('_');
-      const firstName = nameParts[0] || user.username;
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join('_') : 'User';
-
-      const mongoUserData = {
-        _id: new mongoose.Types.ObjectId().toString(),
+      const mongoUser: any = {
+        _id: user.user_id,
         email: user.email,
-        user_password: user.password_hash, // Map password_hash to user_password
-        first_name: firstName,
-        last_name: lastName,
-        user_type: user.role === 'admin' ? 'organizer' : 'fan',
-        fan_details: user.role === 'user' ? {
-          username: user.username,
-          preferred_genre: 'Rock', // Default genre
-          phone_number: '+1234567890', // Default phone
-          referral_points: user.referral_points || 0,
-          referrals: []
-        } : undefined,
-        organizer_details: user.role === 'admin' ? {
-          organization_name: `${user.username} Organization`,
-          contact_info: 'admin@concert.com'
-        } : undefined
+        user_password: user.user_password,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        registration_date: user.registration_date,
+        last_login: user.last_login
       };
 
-      const mongoUser = new UserModel(mongoUserData);
-      await mongoUser.save();
+      // Check if user is a fan
+      if (tablesExist.rows[0].fans_exist) {
+        const fanResult = await pool.query(
+          'SELECT * FROM fans WHERE user_id = $1', 
+          [user.user_id]
+        );
+        
+        if (fanResult.rows.length > 0) {
+          const fan = fanResult.rows[0];
+          mongoUser.user_type = 'fan';
+          mongoUser.fan_details = {
+            username: fan.username,
+            preferred_genre: fan.preferred_genre,
+            phone_number: fan.phone_number,
+            referral_code: fan.referral_code,
+            referred_by: fan.referred_by,
+            referral_points: fan.referral_points,
+            referral_code_used: fan.referral_code_used
+          };
+        }
+      }
+
+      // Check if user is an organizer
+      if (tablesExist.rows[0].organizers_exist && !mongoUser.user_type) {
+        const organizerResult = await pool.query(
+          'SELECT * FROM organizers WHERE user_id = $1', 
+          [user.user_id]
+        );
+        
+        if (organizerResult.rows.length > 0) {
+          const organizer = organizerResult.rows[0];
+          mongoUser.user_type = 'organizer';
+          mongoUser.organizer_details = {
+            organization_name: organizer.organization_name,
+            contact_info: organizer.contact_info
+          };
+        }
+      }
+
+      // Default to fan if no type determined
+      if (!mongoUser.user_type) {
+        mongoUser.user_type = 'fan';
+      }
+
+      await new UserModel(mongoUser).save();
     }
 
     return users.length;
@@ -90,18 +148,26 @@ const migrateUsers = async (): Promise<number> => {
 
 const migrateArtists = async (): Promise<number> => {
   try {
-    const result = await pool.query('SELECT * FROM artists ORDER BY id');
+    const tablesExist = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'artists'
+      ) as artists_exist
+    `);
+
+    if (!tablesExist.rows[0].artists_exist) {
+      console.log('Artists table does not exist, skipping artist migration');
+      return 0;
+    }
+
+    const result = await pool.query('SELECT * FROM artists ORDER BY artist_id');
     const artists = result.rows;
 
     for (const artist of artists) {
       const mongoArtist = new ArtistModel({
-        _id: new mongoose.Types.ObjectId().toString(),
-        artist_name: artist.name,
-        genre: 'Rock', // Default genre since it's not in PostgreSQL schema
-        total_concerts: 0,
-        total_tickets_sold: 0,
-        average_ticket_price: 0,
-        recent_concerts: []
+        _id: artist.artist_id,
+        artist_name: artist.artist_name,
+        genre: artist.genre
       });
 
       await mongoArtist.save();
@@ -114,108 +180,133 @@ const migrateArtists = async (): Promise<number> => {
   }
 };
 
-const migrateVenues = async (): Promise<number> => {
+const migrateArenas = async (): Promise<number> => {
   try {
-    const result = await pool.query('SELECT * FROM venues ORDER BY id');
-    const venues = result.rows;
+    const tablesExist = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'arenas'
+      ) as arenas_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'zones'  
+      ) as zones_exist
+    `);
 
-    for (const venue of venues) {
-      const mongoArena = new ArenaModel({
-        _id: new mongoose.Types.ObjectId().toString(),
-        arena_name: venue.name,
-        arena_location: venue.address,
-        total_capacity: venue.capacity,
-        zones: [
-          {
-            zone_name: 'General Admission',
-            capacity_per_zone: Math.floor(venue.capacity * 0.6)
-          },
-          {
-            zone_name: 'VIP',
-            capacity_per_zone: Math.floor(venue.capacity * 0.3)
-          },
-          {
-            zone_name: 'Premium',
-            capacity_per_zone: Math.floor(venue.capacity * 0.1)
-          }
-        ],
-        total_concerts: 0,
-        total_tickets_sold: 0,
-        utilization_rate: 0
-      });
-
-      await mongoArena.save();
+    if (!tablesExist.rows[0].arenas_exist) {
+      console.log('Arenas table does not exist, skipping arena migration');
+      return 0;
     }
 
-    return venues.length;
+    const arenasResult = await pool.query('SELECT * FROM arenas ORDER BY arena_id');
+    const arenas = arenasResult.rows;
+
+    for (const arena of arenas) {
+      const mongoArena: any = {
+        _id: arena.arena_id,
+        arena_name: arena.arena_name,
+        arena_location: arena.arena_location,
+        total_capacity: arena.total_capacity,
+        zones: []
+      };
+
+      // Get zones for this arena if zones table exists
+      if (tablesExist.rows[0].zones_exist) {
+        const zonesResult = await pool.query(
+          'SELECT * FROM zones WHERE arena_id = $1 ORDER BY zone_name',
+          [arena.arena_id]
+        );
+
+        mongoArena.zones = zonesResult.rows.map(zone => ({
+          zone_name: zone.zone_name,
+          capacity_per_zone: zone.capacity_per_zone
+        }));
+      }
+
+      await new ArenaModel(mongoArena).save();
+    }
+
+    return arenas.length;
   } catch (error) {
-    console.error('Error migrating venues:', error);
+    console.error('Error migrating arenas:', error);
     throw error;
   }
 };
 
 const migrateConcerts = async (): Promise<number> => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        c.*,
-        v.name as venue_name,
-        v.address as venue_address,
-        v.capacity as venue_capacity,
-        a.name as artist_name
-      FROM concerts c
-      JOIN venues v ON c.venue_id = v.id
-      JOIN artists a ON c.artist_id = a.id
-      ORDER BY c.id
+    const tablesExist = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'concerts'
+      ) as concerts_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'concert_features_artists'
+      ) as concert_artists_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'concert_zone_pricing'
+      ) as pricing_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'artists'
+      ) as artists_exist
     `);
-    const concerts = result.rows;
+
+    if (!tablesExist.rows[0].concerts_exist) {
+      console.log('Concerts table does not exist, skipping concert migration');
+      return 0;
+    }
+
+    const concertsResult = await pool.query('SELECT * FROM concerts ORDER BY concert_id');
+    const concerts = concertsResult.rows;
 
     for (const concert of concerts) {
-      const mongoConcert = new ConcertModel({
-        _id: new mongoose.Types.ObjectId(),
-        concert_id: concert.id.toString(),
-        concert_date: concert.date,
-        concert_time: concert.date.toISOString().split('T')[1].substring(0, 5), // Extract time
-        description: concert.description || `Concert by ${concert.artist_name}`,
-        ticket_price: concert.ticket_price,
-        tickets_sold: 0, // Default
-        revenue: 0, // Default
-        organizer: {
-          organizer_id: '1', // Default organizer
-          organization_name: 'Default Organization',
-          contact_email: 'admin@concert.com'
-        },
-        arena: {
-          arena_id: concert.venue_id.toString(),
-          arena_name: concert.venue_name,
-          arena_location: concert.venue_address,
-          capacity: concert.venue_capacity,
-          zones: [
-            {
-              zone_name: 'General Admission',
-              capacity_per_zone: Math.floor(concert.venue_capacity * 0.6),
-              available_tickets: concert.available_tickets || Math.floor(concert.venue_capacity * 0.6)
-            },
-            {
-              zone_name: 'VIP',
-              capacity_per_zone: Math.floor(concert.venue_capacity * 0.3),
-              available_tickets: Math.floor(concert.venue_capacity * 0.3)
-            },
-            {
-              zone_name: 'Premium',
-              capacity_per_zone: Math.floor(concert.venue_capacity * 0.1),
-              available_tickets: Math.floor(concert.venue_capacity * 0.1)
-            }
-          ]
-        },
-        artists: [{
-          artist_id: concert.artist_id.toString(),
-          artist_name: concert.artist_name,
-          genre: 'Rock' // Default
-        }]
-      });
+      const mongoConcert: any = {
+        _id: concert.concert_id,
+        concert_date: concert.concert_date,
+        time: concert.time,
+        description: concert.description,
+        organizer_id: concert.organizer_id,
+        arena_id: concert.arena_id,
+        artists: [],
+        zone_pricing: []
+      };
 
-      await mongoConcert.save();
+      // Get artists for this concert
+      if (tablesExist.rows[0].concert_artists_exist && tablesExist.rows[0].artists_exist) {
+        const artistsResult = await pool.query(`
+          SELECT a.artist_id, a.artist_name, a.genre
+          FROM artists a
+          JOIN concert_features_artists cfa ON a.artist_id = cfa.artist_id
+          WHERE cfa.concert_id = $1
+          ORDER BY a.artist_name
+        `, [concert.concert_id]);
+
+        mongoConcert.artists = artistsResult.rows.map(artist => ({
+          artist_id: artist.artist_id,
+          artist_name: artist.artist_name,
+          genre: artist.genre
+        }));
+      }
+
+      // Get zone pricing for this concert
+      if (tablesExist.rows[0].pricing_exist) {
+        const pricingResult = await pool.query(`
+          SELECT zone_name, price
+          FROM concert_zone_pricing
+          WHERE concert_id = $1
+          ORDER BY zone_name
+        `, [concert.concert_id]);
+
+        mongoConcert.zone_pricing = pricingResult.rows.map(pricing => ({
+          zone_name: pricing.zone_name,
+          price: pricing.price
+        }));
+      }
+
+      await new ConcertModel(mongoConcert).save();
     }
 
     return concerts.length;
@@ -227,54 +318,66 @@ const migrateConcerts = async (): Promise<number> => {
 
 const migrateTickets = async (): Promise<number> => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        t.*,
-        c.title as concert_title,
-        c.date as concert_date,
-        u.username,
-        u.email,
-        v.name as venue_name,
-        v.address as venue_address,
-        a.name as artist_name
-      FROM tickets t
-      JOIN concerts c ON t.concert_id = c.id
-      JOIN users u ON t.user_id = u.id
-      JOIN venues v ON c.venue_id = v.id
-      JOIN artists a ON c.artist_id = a.id
-      ORDER BY t.id
+    const tablesExist = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'tickets'
+      ) as tickets_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'fans'
+      ) as fans_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'concerts'
+      ) as concerts_exist,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'concert_zone_pricing'
+      ) as pricing_exist
     `);
+
+    if (!tablesExist.rows[0].tickets_exist) {
+      console.log('Tickets table does not exist, skipping ticket migration');
+      return 0;
+    }
+
+    // Build query to get ticket data with related information
+    let query = 'SELECT t.*';
+    const joins = ['FROM tickets t'];
+
+    if (tablesExist.rows[0].fans_exist) {
+      query += ', f.username as fan_username';
+      joins.push('LEFT JOIN fans f ON t.fan_id = f.user_id');
+    }
+
+    if (tablesExist.rows[0].concerts_exist) {
+      query += ', c.concert_date';
+      joins.push('LEFT JOIN concerts c ON t.concert_id = c.concert_id');
+    }
+
+    if (tablesExist.rows[0].pricing_exist) {
+      query += ', czp.price';
+      joins.push('LEFT JOIN concert_zone_pricing czp ON t.concert_id = czp.concert_id AND t.zone_name = czp.zone_name');
+    }
+
+    query += ' ' + joins.join(' ') + ' ORDER BY t.ticket_id';
+
+    const result = await pool.query(query);
     const tickets = result.rows;
 
     for (const ticket of tickets) {
       const mongoTicket = new TicketModel({
-        _id: new mongoose.Types.ObjectId(),
-        ticket_id: ticket.id.toString(),
-        purchase_date: ticket.purchase_date || ticket.created_at,
-        purchase_price: ticket.price_paid,
-        fan: {
-          fan_id: ticket.user_id.toString(),
-          username: ticket.username,
-          email: ticket.email,
-          preferred_genre: 'Rock' // Default
-        },
-        concert: {
-          concert_id: ticket.concert_id.toString(),
-          concert_date: ticket.concert_date,
-          concert_time: ticket.concert_date.toISOString().split('T')[1].substring(0, 5),
-          description: ticket.concert_title || `Concert by ${ticket.artist_name}`,
-          organizer_name: 'Default Organization',
-          arena_name: ticket.venue_name,
-          arena_location: ticket.venue_address,
-          artists: [{
-            artist_name: ticket.artist_name,
-            genre: 'Rock'
-          }]
-        },
-        zone: {
-          zone_name: 'General Admission', // Default zone
-          capacity_per_zone: 1000 // Default capacity
-        }
+        _id: ticket.ticket_id,
+        fan_id: ticket.fan_id,
+        concert_id: ticket.concert_id,
+        arena_id: ticket.arena_id,
+        zone_name: ticket.zone_name,
+        purchase_date: ticket.purchase_date,
+        referral_code_used: ticket.referral_code_used,
+        concert_date: ticket.concert_date || new Date(),
+        fan_username: ticket.fan_username || 'Unknown',
+        price: ticket.price || 0
       });
 
       await mongoTicket.save();

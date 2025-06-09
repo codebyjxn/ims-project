@@ -1,76 +1,90 @@
 import pool from '../lib/postgres';
+import { faker } from '@faker-js/faker';
 
 interface User {
-  username: string;
+  user_id: string;
   email: string;
-  password_hash: string;
-  role: string;
-  referral_points: number;
+  user_password: string;
+  first_name: string;
+  last_name: string;
+  registration_date: Date;
+  last_login: Date | null;
 }
 
-interface Venue {
-  name: string;
-  address: string;
-  capacity: number;
+interface Fan {
+  user_id: string;
+  username: string;
+  preferred_genre: string;
+  phone_number: string;
+  referral_code: string;
+  referred_by: string | null;
+  referral_points: number;
+  referral_code_used: boolean;
+}
+
+interface Organizer {
+  user_id: string;
+  organization_name: string;
+  contact_info: string;
 }
 
 interface Artist {
-  name: string;
-  bio: string;
+  artist_id: string;
+  artist_name: string;
+  genre: string;
+}
+
+interface Arena {
+  arena_id: string;
+  arena_name: string;
+  arena_location: string;
+  total_capacity: number;
+}
+
+interface Zone {
+  arena_id: string;
+  zone_name: string;
+  capacity_per_zone: number;
 }
 
 interface Concert {
-  title: string;
+  concert_id: string;
+  organizer_id: string;
+  concert_date: Date;
+  time: string;
   description: string;
-  venue_id: number;
-  artist_id: number;
-  date: Date;
-  ticket_price: number;
-  available_tickets: number;
+  arena_id: string;
 }
 
-// Simple data generators
-const generateUsername = (index: number) => {
-  const prefixes = ['music', 'rock', 'fan', 'user', 'concert', 'lover'];
-  return prefixes[index % prefixes.length] + '_user_' + index;
-};
+interface ConcertZonePricing {
+  concert_id: string;
+  arena_id: string;
+  zone_name: string;
+  price: number;
+}
 
-const generateEmail = (username: string) => {
-  const domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'test.com'];
-  return `${username}@${domains[Math.floor(Math.random() * domains.length)]}`;
-};
+interface ConcertArtist {
+  concert_id: string;
+  artist_id: string;
+}
 
-const generateArtistName = () => {
-  const first = ['The', 'Red', 'Blue', 'Electric', 'Cosmic', 'Wild', 'Neon', 'Silent'];
-  const second = ['Dragons', 'Eagles', 'Wolves', 'Storms', 'Flames', 'Stars', 'Beats', 'Echoes'];
-  return first[Math.floor(Math.random() * first.length)] + ' ' + 
-         second[Math.floor(Math.random() * second.length)];
-};
+interface Ticket {
+  ticket_id: string;
+  fan_id: string;
+  concert_id: string;
+  arena_id: string;
+  zone_name: string;
+  purchase_date: Date;
+  referral_code_used: boolean;
+}
 
-const generateVenueName = () => {
-  const prefixes = ['Grand', 'Royal', 'Central', 'Metro', 'City', 'Arena'];
-  const suffixes = ['Arena', 'Hall', 'Center', 'Pavilion', 'Stadium', 'Theater'];
-  return prefixes[Math.floor(Math.random() * prefixes.length)] + ' ' + 
-         suffixes[Math.floor(Math.random() * suffixes.length)];
-};
-
-const generateAddress = () => {
-  const streets = ['Main St', 'Broadway', 'Oak Ave', 'Park Blvd', 'First St', 'Concert Way'];
-  const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia'];
-  const number = Math.floor(Math.random() * 9999) + 1;
-  return `${number} ${streets[Math.floor(Math.random() * streets.length)]}, ${cities[Math.floor(Math.random() * cities.length)]}`;
-};
-
-const generateConcertTitle = (artistName: string) => {
-  const events = ['World Tour', 'Live Concert', 'Special Performance', 'Greatest Hits', 'Farewell Tour', 'Acoustic Night'];
-  return `${artistName} - ${events[Math.floor(Math.random() * events.length)]}`;
-};
-
-const generateFutureDate = () => {
-  const now = new Date();
-  const futureDate = new Date(now.getTime() + Math.random() * (365 * 24 * 60 * 60 * 1000)); // Random date within a year
-  return futureDate;
-};
+interface FanReferral {
+  referral_id: string;
+  referrer_id: string;
+  referred_id: string;
+  referral_date: Date;
+  points_awarded: number;
+}
 
 export const seedDatabase = async (): Promise<void> => {
   try {
@@ -83,16 +97,35 @@ export const seedDatabase = async (): Promise<void> => {
     const users = await seedUsers();
     console.log(`Seeded ${users.length} users`);
 
-    const venues = await seedVenues();
-    console.log(`Seeded ${venues.length} venues`);
+    // Split users into fans and organizers
+    const fanUsers = users.slice(1, 41); // First 40 users after admin are fans
+    const organizerUsers = users.slice(41); // Last 10 users are organizers
+
+    const fans = await seedFans(fanUsers);
+    console.log(`Seeded ${fans.length} fans`);
+
+    const organizers = await seedOrganizers(organizerUsers);
+    console.log(`Seeded ${organizers.length} organizers`);
 
     const artists = await seedArtists();
     console.log(`Seeded ${artists.length} artists`);
 
-    const concerts = await seedConcerts(venues, artists);
+    const arenas = await seedArenas();
+    console.log(`Seeded ${arenas.length} arenas`);
+
+    const zones = await seedZones(arenas);
+    console.log(`Seeded ${zones.length} zones`);
+
+    const concerts = await seedConcerts(organizers, arenas);
     console.log(`Seeded ${concerts.length} concerts`);
 
-    const tickets = await seedTickets(users, concerts);
+    const concertZonePricing = await seedConcertZonePricing(concerts, zones);
+    console.log(`Seeded ${concertZonePricing.length} concert zone prices`);
+
+    const concertArtists = await seedConcertArtists(concerts, artists);
+    console.log(`Seeded ${concertArtists.length} concert-artist relationships`);
+
+    const tickets = await seedTickets(fans, concerts, zones);
     console.log(`Seeded ${tickets.length} tickets`);
 
     console.log('Database seeding completed successfully!');
@@ -106,179 +139,348 @@ export const seedDatabase = async (): Promise<void> => {
 const clearDatabase = async (): Promise<void> => {
   console.log('Clearing existing data...');
   
-  const tables = ['tickets', 'concerts', 'artists', 'venues', 'users'];
+  // Order matters due to foreign key constraints
+  const tables = [
+    'tickets',
+    'concert_zone_pricing',
+    'concert_features_artists',
+    'concerts',
+    'zones',
+    'arenas',
+    'artists',
+    'organizers',
+    'fans',
+    'users'
+  ];
+  
+  // Disable foreign key checks temporarily
+  await pool.query('SET session_replication_role = replica;');
   
   for (const table of tables) {
-    await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+    try {
+      await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+    } catch (error) {
+      console.log(`Table ${table} might not exist yet, continuing...`);
+    }
   }
+  
+  // Re-enable foreign key checks
+  await pool.query('SET session_replication_role = DEFAULT;');
   
   console.log('Database cleared.');
 };
 
 const seedUsers = async (): Promise<User[]> => {
   const users: User[] = [];
+  const now = new Date();
   
-  // Create admin user first
+  // Create admin user
+  const adminUser = {
+    user_id: faker.string.uuid(),
+    email: 'admin@concert.com',
+    user_password: 'hashed_password', // In production, use proper password hashing
+    first_name: 'Admin',
+    last_name: 'User',
+    registration_date: now,
+    last_login: null
+  };
+  
   await pool.query(
-    'INSERT INTO users (username, email, password_hash, role, referral_points) VALUES ($1, $2, $3, $4, $5)',
-    ['admin', 'admin@concert.com', 'hashed_password', 'admin', 0]
+    'INSERT INTO users (user_id, email, user_password, first_name, last_name, registration_date, last_login) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    [adminUser.user_id, adminUser.email, adminUser.user_password, adminUser.first_name, adminUser.last_name, adminUser.registration_date, adminUser.last_login]
   );
   
-  users.push({
-    username: 'admin',
-    email: 'admin@concert.com',
-    password_hash: 'hashed_password',
-    role: 'admin',
-    referral_points: 0
-  });
+  users.push(adminUser);
 
-  // Create regular users
+  // Create regular users (fans and organizers)
   for (let i = 0; i < 50; i++) {
-    const username = generateUsername(i);
-    const email = generateEmail(username);
+    const user = {
+      user_id: faker.string.uuid(),
+      email: faker.internet.email(),
+      user_password: 'hashed_password',
+      first_name: faker.person.firstName(),
+      last_name: faker.person.lastName(),
+      registration_date: now,
+      last_login: null
+    };
     
-    try {
-      await pool.query(
-        'INSERT INTO users (username, email, password_hash, role, referral_points) VALUES ($1, $2, $3, $4, $5)',
-        [username, email, 'hashed_password', 'user', Math.floor(Math.random() * 100)]
-      );
-      
-      users.push({
-        username,
-        email,
-        password_hash: 'hashed_password',
-        role: 'user',
-        referral_points: Math.floor(Math.random() * 100)
-      });
-    } catch (error) {
-      console.error(`Error inserting user ${username}:`, error);
-      throw error;
-    }
+    await pool.query(
+      'INSERT INTO users (user_id, email, user_password, first_name, last_name, registration_date, last_login) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [user.user_id, user.email, user.user_password, user.first_name, user.last_name, user.registration_date, user.last_login]
+    );
+    
+    users.push(user);
   }
 
   return users;
 };
 
-const seedVenues = async (): Promise<Venue[]> => {
-  const venues: Venue[] = [];
+const seedFans = async (users: User[]): Promise<Fan[]> => {
+  const fans: Fan[] = [];
+  const genres = ['Rock', 'Pop', 'Jazz', 'Classical', 'Hip Hop', 'Electronic', 'Country', 'R&B'];
+  const usedReferralCodes = new Set<string>();
 
-  for (let i = 0; i < 10; i++) {
-    venues.push({
-      name: generateVenueName(),
-      address: generateAddress(),
-      capacity: Math.floor(Math.random() * 50000) + 1000
-    });
-  }
+  for (const user of users) {
+    // Generate a unique referral code
+    let referralCode: string;
+    do {
+      referralCode = faker.string.alphanumeric(8).toUpperCase();
+    } while (usedReferralCodes.has(referralCode));
+    usedReferralCodes.add(referralCode);
 
-  // Insert venues
-  for (const venue of venues) {
+    const fan = {
+      user_id: user.user_id,
+      username: faker.internet.userName(),
+      preferred_genre: faker.helpers.arrayElement(genres),
+      phone_number: faker.phone.number({ style: 'national' }),
+      referral_code: referralCode,
+      referred_by: null,
+      referral_points: 0,
+      referral_code_used: false
+    };
+    
     await pool.query(
-      'INSERT INTO venues (name, address, capacity) VALUES ($1, $2, $3)',
-      [venue.name, venue.address, venue.capacity]
+      'INSERT INTO fans (user_id, username, preferred_genre, phone_number, referral_code, referred_by, referral_points, referral_code_used) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [fan.user_id, fan.username, fan.preferred_genre, fan.phone_number, fan.referral_code, fan.referred_by, fan.referral_points, fan.referral_code_used]
     );
+    
+    fans.push(fan);
   }
 
-  return venues;
+  // Now add some referrals
+  for (let i = 0; i < fans.length; i++) {
+    if (i > 0 && faker.datatype.boolean()) {
+      const referrer = fans[i - 1];
+      const referred = fans[i];
+      
+      await pool.query(
+        'UPDATE fans SET referred_by = $1, referral_points = referral_points + 10 WHERE user_id = $2',
+        [referrer.user_id, referred.user_id]
+      );
+    }
+  }
+
+  return fans;
+};
+
+const seedOrganizers = async (users: User[]): Promise<Organizer[]> => {
+  const organizers: Organizer[] = [];
+
+  for (const user of users) {
+    const organizer = {
+      user_id: user.user_id,
+      organization_name: faker.company.name(),
+      contact_info: faker.phone.number()
+    };
+    
+    await pool.query(
+      'INSERT INTO organizers (user_id, organization_name, contact_info) VALUES ($1, $2, $3)',
+      [organizer.user_id, organizer.organization_name, organizer.contact_info]
+    );
+    
+    organizers.push(organizer);
+  }
+
+  return organizers;
 };
 
 const seedArtists = async (): Promise<Artist[]> => {
   const artists: Artist[] = [];
+  const genres = ['Rock', 'Pop', 'Jazz', 'Classical', 'Hip Hop', 'Electronic', 'Country', 'R&B'];
 
   for (let i = 0; i < 20; i++) {
-    const artistName = generateArtistName();
-    artists.push({
-      name: artistName,
-      bio: `${artistName} is a talented musician known for their unique style and captivating performances.`
-    });
-  }
-
-  // Insert artists
-  for (const artist of artists) {
+    const artist = {
+      artist_id: faker.string.uuid(),
+      artist_name: faker.person.fullName(),
+      genre: faker.helpers.arrayElement(genres)
+    };
+    
     await pool.query(
-      'INSERT INTO artists (name, bio) VALUES ($1, $2)',
-      [artist.name, artist.bio]
+      'INSERT INTO artists (artist_id, artist_name, genre) VALUES ($1, $2, $3)',
+      [artist.artist_id, artist.artist_name, artist.genre]
     );
+    
+    artists.push(artist);
   }
 
   return artists;
 };
 
-const seedConcerts = async (venues: Venue[], artists: Artist[]): Promise<Concert[]> => {
-  const concerts: Concert[] = [];
+const seedArenas = async (): Promise<Arena[]> => {
+  const arenas: Arena[] = [];
 
-  // Get actual venue and artist IDs from database
-  const venueResult = await pool.query('SELECT id FROM venues ORDER BY id');
-  const artistResult = await pool.query('SELECT id, name FROM artists ORDER BY id');
-  
-  const venueIds = venueResult.rows.map(row => row.id);
-  const artistData = artistResult.rows;
-
-  for (let i = 0; i < 30; i++) {
-    const venueId = venueIds[Math.floor(Math.random() * venueIds.length)];
-    const artist = artistData[Math.floor(Math.random() * artistData.length)];
+  for (let i = 0; i < 10; i++) {
+    const arena = {
+      arena_id: faker.string.uuid(),
+      arena_name: faker.company.name() + ' Arena',
+      arena_location: faker.location.streetAddress(),
+      total_capacity: faker.number.int({ min: 1000, max: 50000 })
+    };
     
-    // Get venue capacity for available tickets
-    const venueCapacityResult = await pool.query('SELECT capacity FROM venues WHERE id = $1', [venueId]);
-    const venueCapacity = venueCapacityResult.rows[0].capacity;
+    await pool.query(
+      'INSERT INTO arenas (arena_id, arena_name, arena_location, total_capacity) VALUES ($1, $2, $3, $4)',
+      [arena.arena_id, arena.arena_name, arena.arena_location, arena.total_capacity]
+    );
     
-    concerts.push({
-      title: generateConcertTitle(artist.name),
-      description: 'An amazing live performance you won\'t want to miss!',
-      venue_id: venueId,
-      artist_id: artist.id,
-      date: generateFutureDate(),
-      ticket_price: Math.floor(Math.random() * 200) + 50,
-      available_tickets: Math.floor(venueCapacity * 0.8) // 80% of venue capacity
-    });
+    arenas.push(arena);
   }
 
-  // Insert concerts
-  for (const concert of concerts) {
+  return arenas;
+};
+
+const seedZones = async (arenas: Arena[]): Promise<Zone[]> => {
+  const zones: Zone[] = [];
+  const zoneNames = ['VIP', 'Premium', 'Standard', 'Balcony', 'Floor'];
+
+  for (const arena of arenas) {
+    const numZones = faker.number.int({ min: 2, max: 5 });
+    const selectedZones = faker.helpers.arrayElements(zoneNames, numZones);
+    
+    for (const zoneName of selectedZones) {
+      const zone = {
+        arena_id: arena.arena_id,
+        zone_name: zoneName,
+        capacity_per_zone: Math.floor(arena.total_capacity / numZones)
+      };
+      
+      await pool.query(
+        'INSERT INTO zones (arena_id, zone_name, capacity_per_zone) VALUES ($1, $2, $3)',
+        [zone.arena_id, zone.zone_name, zone.capacity_per_zone]
+      );
+      
+      zones.push(zone);
+    }
+  }
+
+  return zones;
+};
+
+const seedConcerts = async (organizers: Organizer[], arenas: Arena[]): Promise<Concert[]> => {
+  const concerts: Concert[] = [];
+
+  for (let i = 0; i < 30; i++) {
+    const organizer = faker.helpers.arrayElement(organizers);
+    const arena = faker.helpers.arrayElement(arenas);
+    // Ensure concert date is in the future (at least 1 day from now)
+    const concertDate = faker.date.future({ years: 1 });
+    
+    const concert = {
+      concert_id: faker.string.uuid(),
+      organizer_id: organizer.user_id,
+      concert_date: concertDate,
+      time: concertDate.toTimeString().split(' ')[0],
+      description: faker.lorem.paragraph(),
+      arena_id: arena.arena_id
+    };
+    
     await pool.query(
-      'INSERT INTO concerts (title, description, venue_id, artist_id, date, ticket_price, available_tickets) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [concert.title, concert.description, concert.venue_id, concert.artist_id, concert.date, concert.ticket_price, concert.available_tickets]
+      'INSERT INTO concerts (concert_id, organizer_id, concert_date, time, description, arena_id) VALUES ($1, $2, $3, $4, $5, $6)',
+      [concert.concert_id, concert.organizer_id, concert.concert_date, concert.time, concert.description, concert.arena_id]
     );
+    
+    concerts.push(concert);
   }
 
   return concerts;
 };
 
-const seedTickets = async (users: User[], concerts: Concert[]): Promise<any[]> => {
-  const tickets: any[] = [];
+const seedConcertZonePricing = async (concerts: Concert[], zones: Zone[]): Promise<ConcertZonePricing[]> => {
+  const concertZonePricing: ConcertZonePricing[] = [];
+  const zonePriceMultipliers: { [key: string]: number } = {
+    'VIP': 2.0,
+    'Premium': 1.5,
+    'Standard': 1.0,
+    'Balcony': 0.8,
+    'Floor': 0.7
+  };
 
-  // Get actual user and concert IDs from database
-  const userResult = await pool.query('SELECT id FROM users WHERE role = $1', ['user']);
-  const concertResult = await pool.query('SELECT id, ticket_price FROM concerts ORDER BY id');
-  
-  const userIds = userResult.rows.map(row => row.id);
-  const concertData = concertResult.rows;
+  for (const concert of concerts) {
+    const concertZones = zones.filter(z => z.arena_id === concert.arena_id);
+    const basePrice = faker.number.float({ min: 50, max: 200, fractionDigits: 2 });
 
-  // Create random ticket purchases
-  for (let i = 0; i < 100; i++) {
-    const userId = userIds[Math.floor(Math.random() * userIds.length)];
-    const concert = concertData[Math.floor(Math.random() * concertData.length)];
-    const referralUsed = Math.random() < 0.3; // 30% chance of using referral
-    
-    let pricePaid = concert.ticket_price;
-    if (referralUsed) {
-      pricePaid = concert.ticket_price * 0.9; // 10% discount
+    for (const zone of concertZones) {
+      const multiplier = zonePriceMultipliers[zone.zone_name] || 1.0;
+      const price = basePrice * multiplier;
+      
+      const pricing = {
+        concert_id: concert.concert_id,
+        arena_id: concert.arena_id,
+        zone_name: zone.zone_name,
+        price: Number(price.toFixed(2))
+      };
+      
+      await pool.query(
+        'INSERT INTO concert_zone_pricing (concert_id, arena_id, zone_name, price) VALUES ($1, $2, $3, $4)',
+        [pricing.concert_id, pricing.arena_id, pricing.zone_name, pricing.price]
+      );
+      
+      concertZonePricing.push(pricing);
     }
-
-    tickets.push({
-      concert_id: concert.id,
-      user_id: userId,
-      price_paid: pricePaid,
-      referral_used: referralUsed,
-      status: 'active'
-    });
   }
 
-  // Insert tickets
-  for (const ticket of tickets) {
+  return concertZonePricing;
+};
+
+const seedConcertArtists = async (concerts: Concert[], artists: Artist[]): Promise<ConcertArtist[]> => {
+  const concertArtists: ConcertArtist[] = [];
+
+  for (const concert of concerts) {
+    const numArtists = faker.number.int({ min: 1, max: 3 });
+    const selectedArtists = faker.helpers.arrayElements(artists, numArtists);
+    
+    for (const artist of selectedArtists) {
+      const concertArtist = {
+        concert_id: concert.concert_id,
+        artist_id: artist.artist_id
+      };
+      
+      await pool.query(
+        'INSERT INTO concert_features_artists (concert_id, artist_id) VALUES ($1, $2)',
+        [concertArtist.concert_id, concertArtist.artist_id]
+      );
+      
+      concertArtists.push(concertArtist);
+    }
+  }
+
+  return concertArtists;
+};
+
+const seedTickets = async (fans: Fan[], concerts: Concert[], zones: Zone[]): Promise<Ticket[]> => {
+  const tickets: Ticket[] = [];
+
+  for (let i = 0; i < 100; i++) {
+    const fan = faker.helpers.arrayElement(fans);
+    const concert = faker.helpers.arrayElement(concerts);
+    const zone = faker.helpers.arrayElement(zones.filter(z => z.arena_id === concert.arena_id));
+    
+    // 30% chance of using a referral code
+    const referralCodeUsed = faker.datatype.boolean(0.3);
+    
+    const ticket = {
+      ticket_id: faker.string.uuid(),
+      fan_id: fan.user_id,
+      concert_id: concert.concert_id,
+      arena_id: concert.arena_id,
+      zone_name: zone.zone_name,
+      purchase_date: new Date(),
+      referral_code_used: referralCodeUsed
+    };
+    
     await pool.query(
-      'INSERT INTO tickets (concert_id, user_id, price_paid, referral_used, status) VALUES ($1, $2, $3, $4, $5)',
-      [ticket.concert_id, ticket.user_id, ticket.price_paid, ticket.referral_used, ticket.status]
+      'INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, referral_code_used) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [ticket.ticket_id, ticket.fan_id, ticket.concert_id, ticket.arena_id, ticket.zone_name, ticket.purchase_date, ticket.referral_code_used]
     );
+    
+    // If referral code was used, update the fan's referral_code_used status
+    if (referralCodeUsed) {
+      await pool.query(
+        'UPDATE fans SET referral_code_used = true WHERE user_id = $1',
+        [fan.user_id]
+      );
+    }
+    
+    tickets.push(ticket);
   }
 
   return tickets;

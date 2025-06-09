@@ -29,9 +29,9 @@ services:
       - JWT_EXPIRES_IN=24h
     volumes:
       # Mount source code for hot reloading
-      - ./src:/app/src:ro
-      - ./package.json:/app/package.json:ro
-      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
       # Exclude node_modules to avoid conflicts
       - /app/node_modules
     depends_on:

@@ -69,7 +69,20 @@ export class AdminController {
   
   private async getPostgreSQLStats(): Promise<any> {
     try {
-      const tables = ['users', 'venues', 'artists', 'concerts', 'tickets'];
+      // Tables in order of dependencies
+      const tables = [
+        'tickets',
+        'concert_zone_pricing',
+        'concert_features_artists',
+        'concerts',
+        'zones',
+        'arenas',
+        'artists',
+        'organizers',
+        'fans',
+        'users'
+      ];
+      
       const stats: any = {};
 
       for (const table of tables) {
@@ -148,11 +161,33 @@ export class AdminController {
   // Clear all data from databases
   async clearData(req: Request, res: Response): Promise<void> {
     try {
-      // Clear PostgreSQL
-      const tables = ['tickets', 'concerts', 'artists', 'venues', 'users'];
+      // Clear PostgreSQL - tables in order of dependencies
+      const tables = [
+        'tickets',
+        'concert_zone_pricing',
+        'concert_features_artists',
+        'concerts',
+        'zones',
+        'arenas',
+        'artists',
+        'organizers',
+        'fans',
+        'users'
+      ];
+
+      // Disable foreign key checks temporarily
+      await pool.query('SET session_replication_role = replica;');
+      
       for (const table of tables) {
-        await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+        try {
+          await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+        } catch (error) {
+          console.log(`Table ${table} might not exist yet, continuing...`);
+        }
       }
+      
+      // Re-enable foreign key checks
+      await pool.query('SET session_replication_role = DEFAULT;');
 
       // Clear MongoDB
       try {
