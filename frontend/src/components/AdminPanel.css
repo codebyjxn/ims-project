@@ -393,7 +393,7 @@
   }
   
   .button-group {
-    flex-#667eeaon: column;
+    flex-direction: column;
   }
   
   .btn {
