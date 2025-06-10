@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import LandingPage from './pages/LandingPage';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
@@ -45,17 +46,17 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route 
-            path="/dashboard" 
+            path="/admin" 
             element={
               <AdminRoute>
                 <AdminPanel />
               </AdminRoute>
             } 
           />
-          <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
       </Router>
     </AuthProvider>

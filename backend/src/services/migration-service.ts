@@ -14,6 +14,7 @@ import {
   ITicket
 } from '../models/mongodb-schemas';
 import { migrationStatus } from './migration-status';
+import bcrypt from 'bcryptjs';
 
 const pool = new Pool({
   user: process.env.POSTGRES_USER || 'postgres',
@@ -22,6 +23,9 @@ const pool = new Pool({
   password: process.env.POSTGRES_PASSWORD || 'password',
   port: Number(process.env.POSTGRES_PORT) || 5432,
 });
+
+const ADMIN_EMAIL = 'admin@concert.com';
+const ADMIN_PASSWORD = 'admin123';
 
 export const migrateToMongoDB = async (): Promise<{
   users: number;
@@ -55,6 +59,35 @@ export const migrateToMongoDB = async (): Promise<{
     const arenaCount = await migrateArenas();
     const concertCount = await migrateConcerts();
     const ticketCount = await migrateTickets();
+
+    // Recreate admin user in MongoDB
+    console.log('Recreating admin user in MongoDB...');
+    const usersCollection = getUsersCollection();
+    
+    // Check if admin user already exists
+    const existingAdmin = await usersCollection.findOne({ email: ADMIN_EMAIL });
+    
+    if (!existingAdmin) {
+      // Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
+      
+      // Create new admin user
+      const adminUser: IUser = {
+        _id: 'admin-' + Date.now(),
+        email: ADMIN_EMAIL,
+        user_password: hashedPassword,
+        first_name: 'Admin',
+        last_name: 'User',
+        registration_date: new Date(),
+        user_type: 'admin'
+      };
+      
+      await usersCollection.insertOne(adminUser);
+      console.log('✅ Admin user recreated in MongoDB');
+    } else {
+      console.log('Admin user already exists in MongoDB');
+    }
 
     console.log('Migration completed successfully!');
     
