@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { Secret } from 'jsonwebtoken';
 
 dotenv.config(); 
 
@@ -21,9 +22,17 @@ export const config = {
         uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/concert_booking',
     },
 
+    // Migration Configuration
+    migration: {
+        // This flag determines which database to use
+        // false = PostgreSQL only, true = MongoDB (after migration)
+        migrated: process.env.MIGRATED === 'true' || false,
+        statusFile: process.env.MIGRATION_STATUS_FILE || './migration-status.json',
+    },
+
     // JWT Configuration
     jwt: {
-        secret: process.env.JWT_SECRET || 'your-secret-key',
+        secret: process.env.JWT_SECRET as Secret || 'your-secret-key',
         expiresIn: process.env.JWT_EXPIRES_IN || '24h',
     },
 }; 

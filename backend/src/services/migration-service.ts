@@ -13,6 +13,7 @@ import {
   IConcert,
   ITicket
 } from '../models/mongodb-schemas';
+import { migrationStatus } from './migration-status';
 
 const pool = new Pool({
   user: process.env.POSTGRES_USER || 'postgres',
@@ -56,6 +57,10 @@ export const migrateToMongoDB = async (): Promise<{
     const ticketCount = await migrateTickets();
 
     console.log('Migration completed successfully!');
+    
+    // Mark migration as completed
+    migrationStatus.markMigrated();
+    console.log(`Database type switched to: ${migrationStatus.getDatabaseType()}`);
     
     return {
       users: userCount,

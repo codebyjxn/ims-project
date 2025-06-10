@@ -45,7 +45,7 @@ config/nginx/ssl/
 *.crt
 *.key
 *.pem
-*.conf
+
 
 # Environment files
 .env.production

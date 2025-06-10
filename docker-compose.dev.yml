@@ -46,6 +46,8 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=concert_booking
       - MONGODB_URI=mongodb://mongodb:27017/concert_booking
+      - MIGRATED=false
+      - MIGRATION_STATUS_FILE=./migration-status.json
       - JWT_SECRET=your-secret-key-dev
       - JWT_EXPIRES_IN=24h
       - CHOKIDAR_USEPOLLING=true

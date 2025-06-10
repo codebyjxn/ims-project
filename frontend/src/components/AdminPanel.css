@@ -14,13 +14,24 @@
   margin-bottom: 30px;
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header-title {
+  text-align: left;
+}
+
 .header h1 {
   font-size: 2.5rem;
   margin-bottom: 10px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 15px;
 }
 
@@ -32,6 +43,49 @@
 .subtitle {
   font-size: 1.2rem;
   opacity: 0.9;
+  margin: 0;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+
+.user-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.user-type {
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 25px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 /* Status Bar */
@@ -382,8 +436,23 @@
     padding: 10px;
   }
   
+  .header-content {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .header-title {
+    text-align: center;
+  }
+  
   .header h1 {
     font-size: 2rem;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .header-user {
     flex-direction: column;
     gap: 10px;
   }

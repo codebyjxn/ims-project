@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { seedDatabase } from '../scripts/seed-data';
 import { migrateToMongoDB } from '../services/migration-service';
-import pool from '../lib/postgres';
+import { getPool } from '../lib/postgres';
 import { 
   getDatabase,
   getUsersCollection,
@@ -10,6 +10,8 @@ import {
   getConcertsCollection,
   getTicketsCollection
 } from '../models/mongodb-schemas';
+import { migrationStatus } from '../services/migration-status';
+import { DatabaseFactory } from '../lib/database-factory';
 
 export class AdminController {
   
@@ -50,14 +52,24 @@ export class AdminController {
   // Get database statistics
   async getDatabaseStats(req: Request, res: Response): Promise<void> {
     try {
+      // Get current database type and statistics
+      const currentDbType = DatabaseFactory.getCurrentDatabaseType();
+      const migrationInfo = migrationStatus.getStatus();
+      
       // PostgreSQL statistics
       const postgresStats = await this.getPostgreSQLStats();
 
       // MongoDB statistics
       const mongoDBStats = await this.getMongoDBStats();
 
+      // Current active database statistics
+      const activeStats = currentDbType === 'mongodb' ? mongoDBStats : postgresStats;
+
       res.json({
-        postgres: postgresStats,
+        currentDatabase: currentDbType,
+        migrationStatus: migrationInfo,
+        activeStats,
+        postgresql: postgresStats,
         mongodb: mongoDBStats,
         timestamp: new Date().toISOString()
       });
@@ -90,17 +102,24 @@ export class AdminController {
       const stats: any = {};
 
       for (const table of tables) {
-        const result = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
+        const result = await getPool().query(`SELECT COUNT(*) as count FROM ${table}`);
         stats[table] = parseInt(result.rows[0].count);
       }
 
       // Additional PostgreSQL-specific stats
-      const dbSizeResult = await pool.query(`
+      const dbSizeResult = await getPool().query(`
         SELECT pg_size_pretty(pg_database_size(current_database())) as db_size
       `);
       stats.database_size = dbSizeResult.rows[0].db_size;
 
-      return { connected: true, stats };
+      // Calculate total records
+      const totalRecords = Object.values(stats).reduce((sum: number, count) => sum + (count as number), 0);
+      
+      return { 
+        connected: true, 
+        totalRecords,
+        tables: stats
+      };
     } catch (error) {
       console.error('PostgreSQL stats error:', error);
       return { connected: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -128,9 +147,13 @@ export class AdminController {
       const db = getDatabase();
       const dbStats = await db.stats();
       
+      // Calculate total records
+      const totalRecords = Object.values(stats).reduce((sum: number, count) => sum + (count as number), 0);
+      
       return { 
         connected: true, 
-        stats,
+        totalRecords,
+        collections: stats,
         database_size: `${Math.round(dbStats.dataSize / 1024 / 1024 * 100) / 100} MB`
       };
     } catch (error) {
@@ -150,7 +173,7 @@ export class AdminController {
 
       // Test PostgreSQL
       try {
-        await pool.query('SELECT 1');
+        await getPool().query('SELECT 1');
         results.postgres.connected = true;
       } catch (error) {
         results.postgres.error = error instanceof Error ? error.message : 'Unknown error';
@@ -176,6 +199,45 @@ export class AdminController {
     }
   }
   
+  // Get migration status
+  async getMigrationStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const status = migrationStatus.getStatus();
+      const currentDbType = migrationStatus.getDatabaseType();
+      
+      res.json({
+        ...status,
+        currentDatabase: currentDbType,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error getting migration status:', error);
+      res.status(500).json({ 
+        error: 'Failed to get migration status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  // Reset migration status (rollback to PostgreSQL)
+  async resetMigrationStatus(req: Request, res: Response): Promise<void> {
+    try {
+      migrationStatus.markNotMigrated();
+      
+      res.json({
+        message: 'Migration status reset successfully',
+        currentDatabase: migrationStatus.getDatabaseType(),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error resetting migration status:', error);
+      res.status(500).json({ 
+        error: 'Failed to reset migration status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
   // Clear all data from databases
   async clearData(req: Request, res: Response): Promise<void> {
     try {
@@ -189,25 +251,27 @@ export class AdminController {
         'arenas',
         'artists',
         'organizers',
-        'fans',
-        'users'
+        'fans'
       ];
 
       // Disable foreign key checks temporarily
-      await pool.query('SET session_replication_role = replica;');
+      await getPool().query('SET session_replication_role = replica;');
       
       for (const table of tables) {
         try {
-          await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+          await getPool().query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
         } catch (error) {
           console.log(`Table ${table} might not exist yet, continuing...`);
         }
       }
+
+      // Clear users table but preserve admin user
+      await getPool().query(`DELETE FROM users WHERE email != 'admin@concert.com'`);
       
       // Re-enable foreign key checks
-      await pool.query('SET session_replication_role = DEFAULT;');
+      await getPool().query('SET session_replication_role = DEFAULT;');
 
-      // Clear MongoDB using native operations
+      // Clear MongoDB using native operations but preserve admin user
       try {
         const usersCollection = getUsersCollection();
         const artistsCollection = getArtistsCollection();
@@ -216,7 +280,7 @@ export class AdminController {
         const ticketsCollection = getTicketsCollection();
         
         await Promise.all([
-          usersCollection.deleteMany({}),
+          usersCollection.deleteMany({ email: { $ne: 'admin@concert.com' } }), // Preserve admin
           artistsCollection.deleteMany({}),
           arenasCollection.deleteMany({}),
           concertsCollection.deleteMany({}),
@@ -227,7 +291,7 @@ export class AdminController {
       }
 
       res.json({
-        message: 'All data cleared successfully',
+        message: 'All data cleared successfully (admin user preserved)',
         timestamp: new Date().toISOString()
       });
 

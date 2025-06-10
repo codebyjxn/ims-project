@@ -1,5 +1,6 @@
-import pool from '../lib/postgres';
+import { getPool } from '../lib/postgres';
 import { faker } from '@faker-js/faker';
+import bcrypt from 'bcryptjs';
 
 interface User {
   user_id: string;
@@ -93,6 +94,9 @@ export const seedDatabase = async (): Promise<void> => {
     // Clear existing data
     await clearDatabase();
 
+    // Note: Admin user should be created separately using create-admin script
+    console.log('Skipping admin user creation - use npm run create-admin if needed');
+
     // Seed data
     const users = await seedUsers();
     console.log(`Seeded ${users.length} users`);
@@ -154,18 +158,18 @@ const clearDatabase = async (): Promise<void> => {
   ];
   
   // Disable foreign key checks temporarily
-  await pool.query('SET session_replication_role = replica;');
+  await getPool().query('SET session_replication_role = replica;');
   
   for (const table of tables) {
     try {
-      await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+      await getPool().query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
     } catch (error) {
       console.log(`Table ${table} might not exist yet, continuing...`);
     }
   }
   
   // Re-enable foreign key checks
-  await pool.query('SET session_replication_role = DEFAULT;');
+  await getPool().query('SET session_replication_role = DEFAULT;');
   
   console.log('Database cleared.');
 };
@@ -174,37 +178,23 @@ const seedUsers = async (): Promise<User[]> => {
   const users: User[] = [];
   const now = new Date();
   
-  // Create admin user
-  const adminUser = {
-    user_id: faker.string.uuid(),
-    email: 'admin@concert.com',
-    user_password: 'hashed_password', // In production, use proper password hashing
-    first_name: 'Admin',
-    last_name: 'User',
-    registration_date: now,
-    last_login: null
-  };
-  
-  await pool.query(
-    'INSERT INTO users (user_id, email, user_password, first_name, last_name, registration_date, last_login) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-    [adminUser.user_id, adminUser.email, adminUser.user_password, adminUser.first_name, adminUser.last_name, adminUser.registration_date, adminUser.last_login]
-  );
-  
-  users.push(adminUser);
-
-  // Create regular users (fans and organizers)
+  // Create regular users (fans and organizers) - admin is created separately
   for (let i = 0; i < 50; i++) {
+    // Generate a properly hashed password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash('password123', salt);
+    
     const user = {
       user_id: faker.string.uuid(),
       email: faker.internet.email(),
-      user_password: 'hashed_password',
+      user_password: hashedPassword,
       first_name: faker.person.firstName(),
       last_name: faker.person.lastName(),
       registration_date: now,
       last_login: null
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO users (user_id, email, user_password, first_name, last_name, registration_date, last_login) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [user.user_id, user.email, user.user_password, user.first_name, user.last_name, user.registration_date, user.last_login]
     );
@@ -239,7 +229,7 @@ const seedFans = async (users: User[]): Promise<Fan[]> => {
       referral_code_used: false
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO fans (user_id, username, preferred_genre, phone_number, referral_code, referred_by, referral_points, referral_code_used) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [fan.user_id, fan.username, fan.preferred_genre, fan.phone_number, fan.referral_code, fan.referred_by, fan.referral_points, fan.referral_code_used]
     );
@@ -253,7 +243,7 @@ const seedFans = async (users: User[]): Promise<Fan[]> => {
       const referrer = fans[i - 1];
       const referred = fans[i];
       
-      await pool.query(
+      await getPool().query(
         'UPDATE fans SET referred_by = $1, referral_points = referral_points + 10 WHERE user_id = $2',
         [referrer.user_id, referred.user_id]
       );
@@ -273,7 +263,7 @@ const seedOrganizers = async (users: User[]): Promise<Organizer[]> => {
       contact_info: faker.phone.number()
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO organizers (user_id, organization_name, contact_info) VALUES ($1, $2, $3)',
       [organizer.user_id, organizer.organization_name, organizer.contact_info]
     );
@@ -295,7 +285,7 @@ const seedArtists = async (): Promise<Artist[]> => {
       genre: faker.helpers.arrayElement(genres)
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO artists (artist_id, artist_name, genre) VALUES ($1, $2, $3)',
       [artist.artist_id, artist.artist_name, artist.genre]
     );
@@ -317,7 +307,7 @@ const seedArenas = async (): Promise<Arena[]> => {
       total_capacity: faker.number.int({ min: 1000, max: 50000 })
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO arenas (arena_id, arena_name, arena_location, total_capacity) VALUES ($1, $2, $3, $4)',
       [arena.arena_id, arena.arena_name, arena.arena_location, arena.total_capacity]
     );
@@ -343,7 +333,7 @@ const seedZones = async (arenas: Arena[]): Promise<Zone[]> => {
         capacity_per_zone: Math.floor(arena.total_capacity / numZones)
       };
       
-      await pool.query(
+      await getPool().query(
         'INSERT INTO zones (arena_id, zone_name, capacity_per_zone) VALUES ($1, $2, $3)',
         [zone.arena_id, zone.zone_name, zone.capacity_per_zone]
       );
@@ -373,7 +363,7 @@ const seedConcerts = async (organizers: Organizer[], arenas: Arena[]): Promise<C
       arena_id: arena.arena_id
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO concerts (concert_id, organizer_id, concert_date, time, description, arena_id) VALUES ($1, $2, $3, $4, $5, $6)',
       [concert.concert_id, concert.organizer_id, concert.concert_date, concert.time, concert.description, concert.arena_id]
     );
@@ -409,7 +399,7 @@ const seedConcertZonePricing = async (concerts: Concert[], zones: Zone[]): Promi
         price: Number(price.toFixed(2))
       };
       
-      await pool.query(
+      await getPool().query(
         'INSERT INTO concert_zone_pricing (concert_id, arena_id, zone_name, price) VALUES ($1, $2, $3, $4)',
         [pricing.concert_id, pricing.arena_id, pricing.zone_name, pricing.price]
       );
@@ -434,7 +424,7 @@ const seedConcertArtists = async (concerts: Concert[], artists: Artist[]): Promi
         artist_id: artist.artist_id
       };
       
-      await pool.query(
+      await getPool().query(
         'INSERT INTO concert_features_artists (concert_id, artist_id) VALUES ($1, $2)',
         [concertArtist.concert_id, concertArtist.artist_id]
       );
@@ -467,14 +457,14 @@ const seedTickets = async (fans: Fan[], concerts: Concert[], zones: Zone[]): Pro
       referral_code_used: referralCodeUsed
     };
     
-    await pool.query(
+    await getPool().query(
       'INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, referral_code_used) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [ticket.ticket_id, ticket.fan_id, ticket.concert_id, ticket.arena_id, ticket.zone_name, ticket.purchase_date, ticket.referral_code_used]
     );
     
     // If referral code was used, update the fan's referral_code_used status
     if (referralCodeUsed) {
-      await pool.query(
+      await getPool().query(
         'UPDATE fans SET referral_code_used = true WHERE user_id = $1',
         [fan.user_id]
       );

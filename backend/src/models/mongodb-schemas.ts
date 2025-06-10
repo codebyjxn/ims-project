@@ -12,7 +12,7 @@ export interface IUser {
   last_name: string;
   registration_date: Date;
   last_login?: Date;
-  user_type: 'fan' | 'organizer';
+  user_type: 'fan' | 'organizer' | 'admin';
   
   // Fan-specific fields (only when user_type = 'fan')
   fan_details?: {

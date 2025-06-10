@@ -1,5 +1,5 @@
-import pool from '../lib/postgres';
 import { Request, Response } from 'express';
+import { getPool } from '../lib/postgres';
 
 interface PurchaseTicketRequest {
   concertId: number;
@@ -26,7 +26,7 @@ export const purchaseTicket = async (req: Request, res: Response): Promise<void>
 
     // Get concert details from PostgreSQL
     const concertQuery = 'SELECT * FROM concerts WHERE id = $1';
-    const concertResult = await pool.query(concertQuery, [concertId]);
+    const concertResult = await getPool().query(concertQuery, [concertId]);
     
     if (concertResult.rows.length === 0) {
       res.status(404).json({
@@ -51,7 +51,7 @@ export const purchaseTicket = async (req: Request, res: Response): Promise<void>
 
     // Get user details
     const userQuery = 'SELECT * FROM users WHERE id = $1';
-    const userResult = await pool.query(userQuery, [userId]);
+    const userResult = await getPool().query(userQuery, [userId]);
     
     if (userResult.rows.length === 0) {
       res.status(404).json({
@@ -74,7 +74,7 @@ export const purchaseTicket = async (req: Request, res: Response): Promise<void>
     }
 
     // Start transaction
-    await pool.query('BEGIN');
+    await getPool().query('BEGIN');
 
     try {
       // Insert ticket
@@ -83,28 +83,28 @@ export const purchaseTicket = async (req: Request, res: Response): Promise<void>
         VALUES ($1, $2, $3, $4, 'active')
         RETURNING *
       `;
-      const ticketResult = await pool.query(ticketQuery, [concertId, userId, finalPrice, referralUsed]);
+      const ticketResult = await getPool().query(ticketQuery, [concertId, userId, finalPrice, referralUsed]);
       const ticket = ticketResult.rows[0];
 
       // Update concert available tickets
       const updateConcertQuery = 'UPDATE concerts SET available_tickets = available_tickets - 1 WHERE id = $1';
-      await pool.query(updateConcertQuery, [concertId]);
+      await getPool().query(updateConcertQuery, [concertId]);
 
       // Update user referral points if used
       if (referralUsed) {
         const pointsUsed = Math.min(10, user.referral_points);
         const updateUserQuery = 'UPDATE users SET referral_points = referral_points - $1 WHERE id = $2';
-        await pool.query(updateUserQuery, [pointsUsed, userId]);
+        await getPool().query(updateUserQuery, [pointsUsed, userId]);
       }
 
       // Add referral points for purchase (1 point per $10 spent)
       const pointsEarned = Math.floor(finalPrice / 10);
       if (pointsEarned > 0) {
         const addPointsQuery = 'UPDATE users SET referral_points = referral_points + $1 WHERE id = $2';
-        await pool.query(addPointsQuery, [pointsEarned, userId]);
+        await getPool().query(addPointsQuery, [pointsEarned, userId]);
       }
 
-      await pool.query('COMMIT');
+      await getPool().query('COMMIT');
 
       res.status(201).json({
         success: true,
@@ -120,7 +120,7 @@ export const purchaseTicket = async (req: Request, res: Response): Promise<void>
       });
 
     } catch (error) {
-      await pool.query('ROLLBACK');
+      await getPool().query('ROLLBACK');
       throw error;
     }
 
@@ -154,7 +154,7 @@ export const getUserTickets = async (req: Request, res: Response): Promise<void>
       ORDER BY c.date DESC
     `;
 
-    const result = await pool.query(query, [userId]);
+    const result = await getPool().query(query, [userId]);
 
     res.json({
       success: true,
@@ -191,7 +191,7 @@ export const getConcertTicketSummary = async (req: Request, res: Response): Prom
       GROUP BY c.id, c.title, c.ticket_price, c.available_tickets
     `;
 
-    const result = await pool.query(query, [concertId]);
+    const result = await getPool().query(query, [concertId]);
 
     if (result.rows.length === 0) {
       res.status(404).json({

@@ -10,7 +10,8 @@
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "seed": "ts-node src/scripts/seed-data.ts",
-    "migrate": "ts-node src/scripts/migrate-data.ts"
+    "migrate": "ts-node src/scripts/migrate-data.ts",
+    "create-admin": "ts-node src/scripts/create-admin.ts"
   },
   "keywords": [],
   "author": "",

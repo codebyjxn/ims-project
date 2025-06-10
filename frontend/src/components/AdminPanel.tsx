@@ -12,8 +12,11 @@ import {
   AlertCircle,
   Music,
   ArrowRightLeft,
-  Plus
+  Plus,
+  LogOut,
+  User
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import './AdminPanel.css';
 
 interface SystemStats {
@@ -45,6 +48,7 @@ interface LogEntry {
 }
 
 const AdminPanel: React.FC = () => {
+  const { user, logout } = useAuth();
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [dbStatus, setDbStatus] = useState<'online' | 'offline' | 'warning' | 'checking'>('checking');
   const [stats, setStats] = useState<SystemStats | null>(null);
@@ -79,7 +83,13 @@ const AdminPanel: React.FC = () => {
 
   const checkSystemStatus = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       setApiStatus('online');
       await checkDatabaseStatus();
     } catch (error) {
@@ -103,7 +113,7 @@ const AdminPanel: React.FC = () => {
         setDbStatus('offline');
       }
     } catch (error) {
-      setDbStatus('warning');
+      setDbStatus('offline');
     }
   };
 
@@ -111,7 +121,13 @@ const AdminPanel: React.FC = () => {
     setLoading('seed');
     try {
       addLog('info', 'Starting database seeding...');
-      const response = await axios.post(`${API_BASE_URL}/admin/seed`);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/admin/seed`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       addLog('success', `Database seeded successfully: ${(response.data as any).message || 'Sample data created'}`);
     } catch (error: any) {
       const message = error.response?.data?.message || error.message;
@@ -125,7 +141,13 @@ const AdminPanel: React.FC = () => {
     setLoading('migrate');
     try {
       addLog('info', 'Starting migration to MongoDB...');
-      const response = await axios.post(`${API_BASE_URL}/admin/migrate`);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/admin/migrate`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       addLog('success', `Migration completed: ${(response.data as any).message || 'Data migrated to MongoDB'}`);
     } catch (error: any) {
       const message = error.response?.data?.message || error.message;
@@ -143,7 +165,13 @@ const AdminPanel: React.FC = () => {
     setLoading('clear');
     try {
       addLog('warning', 'Starting database clear operation...');
-      const response = await axios.delete(`${API_BASE_URL}/admin/clear`);
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(`${API_BASE_URL}/admin/clear`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       addLog('success', `Database cleared: ${(response.data as any).message || 'All data removed'}`);
       setStats(null);
       setHealth(null);
@@ -159,7 +187,13 @@ const AdminPanel: React.FC = () => {
     setLoading('stats');
     try {
       addLog('info', 'Fetching system statistics...');
-      const response = await axios.get(`${API_BASE_URL}/admin/stats`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/admin/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       setStats(response.data as SystemStats);
       addLog('success', 'Statistics loaded successfully');
     } catch (error: any) {
@@ -211,8 +245,23 @@ const AdminPanel: React.FC = () => {
   return (
     <div className="admin-panel">
       <header className="header">
-        <h1><Music className="header-icon" /> Joana Booking System</h1>
-        <p className="subtitle">Admin Dashboard</p>
+        <div className="header-content">
+          <div className="header-title">
+            <h1><Music className="header-icon" /> Joana Booking System</h1>
+            <p className="subtitle">Admin Dashboard</p>
+          </div>
+          <div className="header-user">
+            <div className="user-info">
+              <User className="user-icon" />
+              <span>{user?.firstName} {user?.lastName}</span>
+              <span className="user-type">({user?.userType})</span>
+            </div>
+            <button className="logout-btn" onClick={logout}>
+              <LogOut className="btn-icon" />
+              Logout
+            </button>
+          </div>
+        </div>
       </header>
 
       <div className="status-bar">
