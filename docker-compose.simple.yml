@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # Frontend (Admin Panel)
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+  # Backend API
+  backend:
+    build: ./backend
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=concert_booking
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - MONGO_URI=mongodb://mongodb:27017/concert_booking
+      - JWT_SECRET=your-secret-key-here
+      - PORT=3000
+    depends_on:
+      - postgres
+      - mongodb
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=concert_booking
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-jammy
+    environment:
+      - MONGO_INITDB_DATABASE=concert_booking
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  mongodb_data:
+
+networks:
+  internal:
+    driver: bridge 

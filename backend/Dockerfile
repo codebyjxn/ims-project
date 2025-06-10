@@ -30,14 +30,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Install all dependencies first (needed for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the application
 RUN npm run build
+
+# Clean up dev dependencies after build
+RUN npm prune --omit=dev
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs

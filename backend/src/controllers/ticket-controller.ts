@@ -1,5 +1,4 @@
 import pool from '../lib/postgres';
-import { TicketModel, ConcertModel, UserModel } from '../models/mongodb-schemas';
 import { Request, Response } from 'express';
 
 interface PurchaseTicketRequest {

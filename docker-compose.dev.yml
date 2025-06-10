@@ -1,4 +1,25 @@
 services:
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      # Hot reloading
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
   mongodb:
     image: mongo:7
     ports:
@@ -9,16 +30,15 @@ services:
       - app-network
     restart: unless-stopped
 
-  # Backend Application - Production
+  # Backend Application
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
+      context: ./backend
+      dockerfile: Dockerfile.dev
     ports:
       - "4000:4000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=4000
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -26,8 +46,16 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=concert_booking
       - MONGODB_URI=mongodb://mongodb:27017/concert_booking
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=your-secret-key-dev
       - JWT_EXPIRES_IN=24h
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      # Mount source code for hot reloading
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,7 +75,7 @@ services:
       - POSTGRES_DB=concert_booking
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./src/db/init:/docker-entrypoint-initdb.d
+      - ./backend/src/db/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
