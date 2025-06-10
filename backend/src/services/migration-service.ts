@@ -1,7 +1,17 @@
 import { Pool } from 'pg';
-import mongoose from 'mongoose';
 import {
-  UserModel, ConcertModel, TicketModel, ArtistModel, ArenaModel
+  connectMongoDB,
+  getUsersCollection,
+  getArtistsCollection,
+  getArenasCollection,
+  getConcertsCollection,
+  getTicketsCollection,
+  createIndexes,
+  IUser,
+  IArtist,
+  IArena,
+  IConcert,
+  ITicket
 } from '../models/mongodb-schemas';
 
 const pool = new Pool({
@@ -22,15 +32,21 @@ export const migrateToMongoDB = async (): Promise<{
   try {
     console.log('Starting migration from PostgreSQL to MongoDB...');
 
-    // Clear existing MongoDB data
+    // Connect to MongoDB
+    await connectMongoDB();
+
+    // Clear existing MongoDB data using native operations
     console.log('Clearing existing MongoDB data...');
     await Promise.all([
-      UserModel.deleteMany({}),
-      ArtistModel.deleteMany({}),
-      ArenaModel.deleteMany({}),
-      ConcertModel.deleteMany({}),
-      TicketModel.deleteMany({})
+      getUsersCollection().deleteMany({}),
+      getArtistsCollection().deleteMany({}),
+      getArenasCollection().deleteMany({}),
+      getConcertsCollection().deleteMany({}),
+      getTicketsCollection().deleteMany({})
     ]);
+
+    // Create indexes
+    await createIndexes();
 
     // Migrate data in order (respecting dependencies)
     const userCount = await migrateUsers();
@@ -81,15 +97,19 @@ const migrateUsers = async (): Promise<number> => {
     const usersResult = await pool.query('SELECT * FROM users ORDER BY user_id');
     const users = usersResult.rows;
 
+    const usersCollection = getUsersCollection();
+    const mongoUsers: IUser[] = [];
+
     for (const user of users) {
-      const mongoUser: any = {
+      const mongoUser: IUser = {
         _id: user.user_id,
         email: user.email,
         user_password: user.user_password,
         first_name: user.first_name,
         last_name: user.last_name,
         registration_date: user.registration_date,
-        last_login: user.last_login
+        last_login: user.last_login,
+        user_type: 'fan' // default
       };
 
       // Check if user is a fan
@@ -115,7 +135,7 @@ const migrateUsers = async (): Promise<number> => {
       }
 
       // Check if user is an organizer
-      if (tablesExist.rows[0].organizers_exist && !mongoUser.user_type) {
+      if (tablesExist.rows[0].organizers_exist && mongoUser.user_type === 'fan') {
         const organizerResult = await pool.query(
           'SELECT * FROM organizers WHERE user_id = $1', 
           [user.user_id]
@@ -128,18 +148,20 @@ const migrateUsers = async (): Promise<number> => {
             organization_name: organizer.organization_name,
             contact_info: organizer.contact_info
           };
+          // Remove fan_details when user is organizer
+          delete mongoUser.fan_details;
         }
       }
 
-      // Default to fan if no type determined
-      if (!mongoUser.user_type) {
-        mongoUser.user_type = 'fan';
-      }
-
-      await new UserModel(mongoUser).save();
+      mongoUsers.push(mongoUser);
     }
 
-    return users.length;
+    // Insert all users using native MongoDB insertMany
+    if (mongoUsers.length > 0) {
+      await usersCollection.insertMany(mongoUsers);
+    }
+
+    return mongoUsers.length;
   } catch (error) {
     console.error('Error migrating users:', error);
     throw error;
@@ -163,17 +185,19 @@ const migrateArtists = async (): Promise<number> => {
     const result = await pool.query('SELECT * FROM artists ORDER BY artist_id');
     const artists = result.rows;
 
-    for (const artist of artists) {
-      const mongoArtist = new ArtistModel({
-        _id: artist.artist_id,
-        artist_name: artist.artist_name,
-        genre: artist.genre
-      });
+    const artistsCollection = getArtistsCollection();
+    const mongoArtists: IArtist[] = artists.map(artist => ({
+      _id: artist.artist_id,
+      artist_name: artist.artist_name,
+      genre: artist.genre
+    }));
 
-      await mongoArtist.save();
+    // Insert all artists using native MongoDB insertMany
+    if (mongoArtists.length > 0) {
+      await artistsCollection.insertMany(mongoArtists);
     }
 
-    return artists.length;
+    return mongoArtists.length;
   } catch (error) {
     console.error('Error migrating artists:', error);
     throw error;
@@ -201,8 +225,11 @@ const migrateArenas = async (): Promise<number> => {
     const arenasResult = await pool.query('SELECT * FROM arenas ORDER BY arena_id');
     const arenas = arenasResult.rows;
 
+    const arenasCollection = getArenasCollection();
+    const mongoArenas: IArena[] = [];
+
     for (const arena of arenas) {
-      const mongoArena: any = {
+      const mongoArena: IArena = {
         _id: arena.arena_id,
         arena_name: arena.arena_name,
         arena_location: arena.arena_location,
@@ -223,10 +250,15 @@ const migrateArenas = async (): Promise<number> => {
         }));
       }
 
-      await new ArenaModel(mongoArena).save();
+      mongoArenas.push(mongoArena);
     }
 
-    return arenas.length;
+    // Insert all arenas using native MongoDB insertMany
+    if (mongoArenas.length > 0) {
+      await arenasCollection.insertMany(mongoArenas);
+    }
+
+    return mongoArenas.length;
   } catch (error) {
     console.error('Error migrating arenas:', error);
     throw error;
@@ -262,8 +294,11 @@ const migrateConcerts = async (): Promise<number> => {
     const concertsResult = await pool.query('SELECT * FROM concerts ORDER BY concert_id');
     const concerts = concertsResult.rows;
 
+    const concertsCollection = getConcertsCollection();
+    const mongoConcerts: IConcert[] = [];
+
     for (const concert of concerts) {
-      const mongoConcert: any = {
+      const mongoConcert: IConcert = {
         _id: concert.concert_id,
         concert_date: concert.concert_date,
         time: concert.time,
@@ -306,10 +341,15 @@ const migrateConcerts = async (): Promise<number> => {
         }));
       }
 
-      await new ConcertModel(mongoConcert).save();
+      mongoConcerts.push(mongoConcert);
     }
 
-    return concerts.length;
+    // Insert all concerts using native MongoDB insertMany
+    if (mongoConcerts.length > 0) {
+      await concertsCollection.insertMany(mongoConcerts);
+    }
+
+    return mongoConcerts.length;
   } catch (error) {
     console.error('Error migrating concerts:', error);
     throw error;
@@ -366,24 +406,26 @@ const migrateTickets = async (): Promise<number> => {
     const result = await pool.query(query);
     const tickets = result.rows;
 
-    for (const ticket of tickets) {
-      const mongoTicket = new TicketModel({
-        _id: ticket.ticket_id,
-        fan_id: ticket.fan_id,
-        concert_id: ticket.concert_id,
-        arena_id: ticket.arena_id,
-        zone_name: ticket.zone_name,
-        purchase_date: ticket.purchase_date,
-        referral_code_used: ticket.referral_code_used,
-        concert_date: ticket.concert_date || new Date(),
-        fan_username: ticket.fan_username || 'Unknown',
-        price: ticket.price || 0
-      });
+    const ticketsCollection = getTicketsCollection();
+    const mongoTickets: ITicket[] = tickets.map(ticket => ({
+      _id: ticket.ticket_id,
+      fan_id: ticket.fan_id,
+      concert_id: ticket.concert_id,
+      arena_id: ticket.arena_id,
+      zone_name: ticket.zone_name,
+      purchase_date: ticket.purchase_date,
+      referral_code_used: ticket.referral_code_used,
+      concert_date: ticket.concert_date || new Date(),
+      fan_username: ticket.fan_username || 'Unknown',
+      price: ticket.price || 0
+    }));
 
-      await mongoTicket.save();
+    // Insert all tickets using native MongoDB insertMany
+    if (mongoTickets.length > 0) {
+      await ticketsCollection.insertMany(mongoTickets);
     }
 
-    return tickets.length;
+    return mongoTickets.length;
   } catch (error) {
     console.error('Error migrating tickets:', error);
     throw error;

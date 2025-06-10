@@ -1,8 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { MongoClient, Db, Collection } from 'mongodb';
 
-// ========== USERS COLLECTION ==========
-// Optimized: Keep user types together but optimize for query patterns
-export interface IUser extends Document {
+// ========== NATIVE MONGODB INTERFACES ==========
+// These are plain TypeScript interfaces, not ORM/ODM schemas
+
+// Users Collection Interface
+export interface IUser {
   _id: string; // user_id from SQL
   email: string;
   user_password: string;
@@ -18,7 +20,7 @@ export interface IUser extends Document {
     preferred_genre: string;
     phone_number: string;
     referral_code: string;
-    referred_by?: string; // Reference to referrer's user_id
+    referred_by?: string;
     referral_points: number;
     referral_code_used: boolean;
   };
@@ -30,136 +32,46 @@ export interface IUser extends Document {
   };
 }
 
-const UserSchema = new Schema<IUser>({
-  _id: { type: String, required: true },
-  email: { type: String, unique: true, required: true },
-  user_password: { type: String, required: true },
-  first_name: { type: String, required: true },
-  last_name: { type: String, required: true },
-  registration_date: { type: Date, default: Date.now },
-  last_login: Date,
-  user_type: { type: String, enum: ['fan', 'organizer'], required: true },
-  
-  fan_details: {
-    username: { type: String, unique: true, sparse: true },
-    preferred_genre: String,
-    phone_number: String,
-    referral_code: { type: String, unique: true, sparse: true },
-    referred_by: String,
-    referral_points: { type: Number, default: 0 },
-    referral_code_used: { type: Boolean, default: false }
-  },
-
-  organizer_details: {
-    organization_name: String,
-    contact_info: String
-  }
-}, { 
-  _id: false,
-  versionKey: false
-});
-
-// ========== ARTISTS COLLECTION ==========
-// Simplified: Only core artist data
-export interface IArtist extends Document {
+// Artists Collection Interface
+export interface IArtist {
   _id: string; // artist_id from SQL
   artist_name: string;
   genre: string;
 }
 
-const ArtistSchema = new Schema<IArtist>({
-  _id: { type: String, required: true },
-  artist_name: { type: String, required: true },
-  genre: String
-}, { 
-  _id: false,
-  versionKey: false
-});
-
-// ========== ARENAS COLLECTION ==========
-// Optimized: Embed zones for better performance on concert queries
-export interface IArena extends Document {
+// Arenas Collection Interface
+export interface IArena {
   _id: string; // arena_id from SQL
   arena_name: string;
   arena_location: string;
   total_capacity: number;
-  
-  // Embed zones for better query performance
   zones: Array<{
     zone_name: string;
     capacity_per_zone: number;
   }>;
 }
 
-const ArenaSchema = new Schema<IArena>({
-  _id: { type: String, required: true },
-  arena_name: { type: String, required: true },
-  arena_location: String,
-  total_capacity: Number,
-  
-  zones: [{
-    zone_name: { type: String, required: true },
-    capacity_per_zone: { type: Number, required: true }
-  }]
-}, { 
-  _id: false,
-  versionKey: false
-});
-
-// ========== CONCERTS COLLECTION ==========
-// Optimized: Denormalize frequently accessed data, reference rarely accessed
-export interface IConcert extends Document {
+// Concerts Collection Interface
+export interface IConcert {
   _id: string; // concert_id from SQL
   concert_date: Date;
-  time: string; // concert time
+  time: string;
   description: string;
-  
-  // Reference to organizer (not embedded - organizer data rarely changes)
   organizer_id: string;
-  
-  // Reference to arena (not embedded - arena data rarely changes)
   arena_id: string;
-  
-  // Embed artist IDs and names for quick access (small, frequently accessed)
   artists: Array<{
     artist_id: string;
     artist_name: string;
     genre: string;
   }>;
-  
-  // Embed zone pricing for quick ticket purchase queries
   zone_pricing: Array<{
     zone_name: string;
     price: number;
   }>;
 }
 
-const ConcertSchema = new Schema<IConcert>({
-  _id: { type: String, required: true },
-  concert_date: { type: Date, required: true },
-  time: String,
-  description: String,
-  organizer_id: { type: String, required: true },
-  arena_id: { type: String, required: true },
-  
-  artists: [{
-    artist_id: { type: String, required: true },
-    artist_name: { type: String, required: true },
-    genre: String
-  }],
-  
-  zone_pricing: [{
-    zone_name: { type: String, required: true },
-    price: { type: Number, required: true }
-  }]
-}, { 
-  _id: false,
-  versionKey: false
-});
-
-// ========== TICKETS COLLECTION ==========
-// Optimized: Minimal denormalization, focus on transaction efficiency
-export interface ITicket extends Document {
+// Tickets Collection Interface
+export interface ITicket {
   _id: string; // ticket_id from SQL
   fan_id: string;
   concert_id: string;
@@ -167,71 +79,104 @@ export interface ITicket extends Document {
   zone_name: string;
   purchase_date: Date;
   referral_code_used: boolean;
-  
-  // Denormalize only essential data for common queries
-  concert_date: Date; // For date-based queries
-  fan_username: string; // For fan ticket lookup
-  price: number; // From concert_zone_pricing
+  concert_date: Date;
+  fan_username: string;
+  price: number;
 }
 
-const TicketSchema = new Schema<ITicket>({
-  _id: { type: String, required: true },
-  fan_id: { type: String, required: true },
-  concert_id: { type: String, required: true },
-  arena_id: { type: String, required: true },
-  zone_name: { type: String, required: true },
-  purchase_date: { type: Date, default: Date.now },
-  referral_code_used: { type: Boolean, default: false },
-  
-  // Denormalized for query performance
-  concert_date: { type: Date, required: true },
-  fan_username: { type: String, required: true },
-  price: { type: Number, required: true }
-}, { 
-  _id: false,
-  versionKey: false
-});
+// ========== NATIVE MONGODB CONNECTION ==========
+let client: MongoClient;
+let db: Db;
 
-// Export models
-export const UserModel = mongoose.model<IUser>('User', UserSchema);
-export const ArtistModel = mongoose.model<IArtist>('Artist', ArtistSchema);
-export const ArenaModel = mongoose.model<IArena>('Arena', ArenaSchema);
-export const ConcertModel = mongoose.model<IConcert>('Concert', ConcertSchema);
-export const TicketModel = mongoose.model<ITicket>('Ticket', TicketSchema);
+export const connectMongoDB = async (): Promise<void> => {
+  try {
+    const mongoUrl = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+    const dbName = process.env.MONGODB_DB || 'concert_booking';
+    
+    client = new MongoClient(mongoUrl);
+    await client.connect();
+    db = client.db(dbName);
+    
+    console.log('Connected to MongoDB successfully');
+  } catch (error) {
+    console.error('Error connecting to MongoDB:', error);
+    throw error;
+  }
+};
 
-// Optimized indexes for common query patterns
+export const getDatabase = (): Db => {
+  if (!db) {
+    throw new Error('Database not connected. Call connectMongoDB() first.');
+  }
+  return db;
+};
+
+export const closeMongoDB = async (): Promise<void> => {
+  if (client) {
+    await client.close();
+  }
+};
+
+// ========== COLLECTION GETTERS ==========
+export const getUsersCollection = (): Collection<IUser> => {
+  return getDatabase().collection<IUser>('users');
+};
+
+export const getArtistsCollection = (): Collection<IArtist> => {
+  return getDatabase().collection<IArtist>('artists');
+};
+
+export const getArenasCollection = (): Collection<IArena> => {
+  return getDatabase().collection<IArena>('arenas');
+};
+
+export const getConcertsCollection = (): Collection<IConcert> => {
+  return getDatabase().collection<IConcert>('concerts');
+};
+
+export const getTicketsCollection = (): Collection<ITicket> => {
+  return getDatabase().collection<ITicket>('tickets');
+};
+
+// ========== INDEX CREATION ==========
 export const createIndexes = async (): Promise<void> => {
   try {
+    const usersCol = getUsersCollection();
+    const artistsCol = getArtistsCollection();
+    const arenasCol = getArenasCollection();
+    const concertsCol = getConcertsCollection();
+    const ticketsCol = getTicketsCollection();
+
     // User indexes - optimized for authentication and fan lookups
-    await UserModel.collection.createIndex({ email: 1 });
-    await UserModel.collection.createIndex({ user_type: 1 });
-    await UserModel.collection.createIndex({ 'fan_details.username': 1 });
-    await UserModel.collection.createIndex({ 'fan_details.preferred_genre': 1 });
-    await UserModel.collection.createIndex({ 'fan_details.referral_code': 1 });
+    await usersCol.createIndex({ email: 1 }, { unique: true });
+    await usersCol.createIndex({ user_type: 1 });
+    await usersCol.createIndex({ 'fan_details.username': 1 }, { sparse: true, unique: true });
+    await usersCol.createIndex({ 'fan_details.preferred_genre': 1 });
+    await usersCol.createIndex({ 'fan_details.referral_code': 1 }, { sparse: true, unique: true });
 
     // Artist indexes - optimized for genre searches
-    await ArtistModel.collection.createIndex({ genre: 1 });
-    await ArtistModel.collection.createIndex({ artist_name: 1 });
+    await artistsCol.createIndex({ genre: 1 });
+    await artistsCol.createIndex({ artist_name: 1 });
 
     // Arena indexes - optimized for location searches
-    await ArenaModel.collection.createIndex({ arena_location: 1 });
+    await arenasCol.createIndex({ arena_location: 1 });
 
     // Concert indexes - optimized for date and location searches
-    await ConcertModel.collection.createIndex({ concert_date: 1 });
-    await ConcertModel.collection.createIndex({ organizer_id: 1 });
-    await ConcertModel.collection.createIndex({ arena_id: 1 });
-    await ConcertModel.collection.createIndex({ 'artists.genre': 1 });
+    await concertsCol.createIndex({ concert_date: 1 });
+    await concertsCol.createIndex({ organizer_id: 1 });
+    await concertsCol.createIndex({ arena_id: 1 });
+    await concertsCol.createIndex({ 'artists.genre': 1 });
     // Compound index for common search pattern
-    await ConcertModel.collection.createIndex({ concert_date: 1, arena_id: 1 });
+    await concertsCol.createIndex({ concert_date: 1, arena_id: 1 });
 
     // Ticket indexes - optimized for fan queries and analytics
-    await TicketModel.collection.createIndex({ fan_id: 1 });
-    await TicketModel.collection.createIndex({ concert_id: 1 });
-    await TicketModel.collection.createIndex({ purchase_date: 1 });
-    await TicketModel.collection.createIndex({ concert_date: 1 });
+    await ticketsCol.createIndex({ fan_id: 1 });
+    await ticketsCol.createIndex({ concert_id: 1 });
+    await ticketsCol.createIndex({ purchase_date: 1 });
+    await ticketsCol.createIndex({ concert_date: 1 });
     // Compound indexes for common query patterns
-    await TicketModel.collection.createIndex({ fan_id: 1, concert_date: 1 });
-    await TicketModel.collection.createIndex({ concert_id: 1, zone_name: 1 });
+    await ticketsCol.createIndex({ fan_id: 1, concert_date: 1 });
+    await ticketsCol.createIndex({ concert_id: 1, zone_name: 1 });
 
     console.log('MongoDB indexes created successfully');
   } catch (error) {

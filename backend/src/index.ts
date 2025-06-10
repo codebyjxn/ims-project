@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { config } from './config';
 import pool from './lib/postgres';
-import mongoose from 'mongoose';
+import { connectMongoDB, getDatabase, closeMongoDB } from './models/mongodb-schemas';
 import adminRoutes from './routes/admin';
 import ticketRoutes from './routes/tickets';
 
@@ -22,15 +22,37 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/tickets', ticketRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    services: {
-      postgres: 'connected',
-      mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+app.get('/health', async (req, res) => {
+  try {
+    // Test PostgreSQL connection
+    await pool.query('SELECT 1');
+    const pgStatus = 'connected';
+    
+    // Test MongoDB connection
+    let mongoStatus = 'disconnected';
+    try {
+      const db = getDatabase();
+      await db.admin().ping();
+      mongoStatus = 'connected';
+    } catch (mongoError) {
+      mongoStatus = 'disconnected';
     }
-  });
+
+    res.json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      services: {
+        postgres: pgStatus,
+        mongodb: mongoStatus
+      }
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'ERROR',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // API routes
@@ -62,17 +84,30 @@ app.get('/api/test-db', async (req, res) => {
     // Test PostgreSQL
     const pgResult = await pool.query('SELECT NOW() as postgres_time');
     
-    // Test MongoDB
-    const mongoStatus = mongoose.connection.readyState;
+    // Test MongoDB using native driver
+    let mongoResult = null;
+    let mongoError = null;
+    try {
+      const db = getDatabase();
+      await db.admin().ping();
+      const serverStatus = await db.admin().serverStatus();
+      mongoResult = {
+        status: 'connected',
+        version: serverStatus.version,
+        uptime: serverStatus.uptime
+      };
+    } catch (error) {
+      mongoError = error instanceof Error ? error.message : 'Unknown error';
+    }
     
     res.json({
       postgres: {
         status: 'connected',
         time: pgResult.rows[0].postgres_time
       },
-      mongodb: {
-        status: mongoStatus === 1 ? 'connected' : 'disconnected',
-        readyState: mongoStatus
+      mongodb: mongoResult || {
+        status: 'disconnected',
+        error: mongoError
       }
     });
   } catch (error) {
@@ -83,14 +118,27 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
-// Connect to MongoDB
-mongoose.connect(config.mongodb.uri)
-  .then(() => {
-    console.log('✅ Connected to MongoDB');
-  })
-  .catch((error) => {
+// Connect to databases
+const initializeDatabases = async () => {
+  try {
+    // Test PostgreSQL connection
+    await pool.query('SELECT 1');
+    console.log('✅ Successfully connected to PostgreSQL');
+  } catch (error) {
+    console.error('❌ PostgreSQL connection error:', error);
+  }
+
+  try {
+    // Connect to MongoDB using native driver
+    await connectMongoDB();
+    console.log('✅ Successfully connected to MongoDB');
+  } catch (error) {
     console.error('❌ MongoDB connection error:', error);
-  });
+  }
+};
+
+// Initialize databases
+initializeDatabases();
 
 // Start server
 const PORT = config.port;
@@ -104,9 +152,9 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
-  mongoose.connection.close();
-  pool.end();
+  await closeMongoDB();
+  await pool.end();
   process.exit(0);
 });
