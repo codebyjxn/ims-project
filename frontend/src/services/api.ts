@@ -43,6 +43,78 @@ export interface SignupOrganizerData extends LoginCredentials {
   contactInfo: string;
 }
 
+export interface Concert {
+  concert_id: string;
+  concert_name?: string;
+  concert_date: string;
+  time: string;
+  description?: string;
+  arena_id?: string;
+  arena_capacity?: number;
+  artists: {
+    artist_id: string;
+    artist_name: string;
+    genre: string;
+  }[];
+  zone_pricing: {
+    zone_name: string;
+    price: number;
+  }[];
+  arena?: {
+    arena_id: string;
+    arena_name: string;
+    arena_location: string;
+    total_capacity: number;
+    zones?: {
+      zone_name: string;
+      capacity_per_zone: number;
+      price: number;
+      availableTickets: number;
+    }[];
+  };
+}
+
+export interface TicketPurchaseData {
+  concertId: string;
+  zoneId: string;
+  quantity: number;
+  referralCode?: string;
+}
+
+export interface TicketValidationData {
+  concertId: string;
+  zoneId: string;
+  quantity: number;
+  referralCode?: string;
+}
+
+export interface UserTicket {
+  id: string;
+  concert: {
+    id: string;
+    title: string;
+    date: string;
+    startTime: string;
+    arena: {
+      name: string;
+      location: string;
+    };
+  };
+  zone: {
+    id: string;
+    name: string;
+  };
+  quantity: number;
+  totalPrice: number;
+  purchaseDate: string;
+}
+
+export interface ReferralValidation {
+  isValid: boolean;
+  discount?: number;
+  message: string;
+}
+
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -88,6 +160,46 @@ class ApiService {
         ...data,
         userType: 'organizer',
       }),
+    });
+  }
+
+  async getUpcomingConcerts(limit?: number, genre?: string): Promise<Concert[]> {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (genre) params.append('genre', genre);
+    
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await this.request<{ concerts: Concert[] }>(`/concerts/upcoming${query}`);
+    return response.concerts || [];
+  }
+
+  async getConcertById(id: string): Promise<Concert> {
+    const response = await this.request<{ concert: Concert }>(`/concerts/${id}`);
+    return response.concert;
+  }
+
+  async validateTicketPurchase(data: TicketValidationData): Promise<{ isValid: boolean; message: string; totalPrice?: number }> {
+    return this.request(`/tickets/validate-purchase`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async purchaseTickets(data: TicketPurchaseData): Promise<{ message: string; ticketId: string; totalPrice: number }> {
+    return this.request(`/tickets/purchase`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getUserTickets(): Promise<UserTicket[]> {
+    return this.request<UserTicket[]>('/tickets/user');
+  }
+
+  async validateReferralCode(code: string): Promise<ReferralValidation> {
+    return this.request<ReferralValidation>(`/referrals/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ referralCode: code }),
     });
   }
 }

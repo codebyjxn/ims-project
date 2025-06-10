@@ -62,35 +62,53 @@ const LandingPage: React.FC = () => {
         <Box sx={{ mt: 4 }}>
           <StyledButton
             variant="contained"
-            color="primary"
+            color="secondary"
             size="large"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/concerts')}
             sx={{
-              backgroundColor: '#1DB954',
+              backgroundColor: '#ff6b35',
               '&:hover': {
-                backgroundColor: '#1ed760',
+                backgroundColor: '#e55a2e',
               },
+              mb: 2
             }}
           >
-            Login
+            Browse Concerts
           </StyledButton>
           
-          <StyledButton
-            variant="outlined"
-            color="inherit"
-            size="large"
-            onClick={() => navigate('/signup')}
-            sx={{
-              borderColor: 'white',
-              color: 'white',
-              '&:hover': {
+          <Box sx={{ display: 'block' }}>
+            <StyledButton
+              variant="contained"
+              color="primary"
+              size="large"
+              onClick={() => navigate('/login')}
+              sx={{
+                backgroundColor: '#1DB954',
+                '&:hover': {
+                  backgroundColor: '#1ed760',
+                },
+              }}
+            >
+              Login
+            </StyledButton>
+            
+            <StyledButton
+              variant="outlined"
+              color="inherit"
+              size="large"
+              onClick={() => navigate('/signup')}
+              sx={{
                 borderColor: 'white',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-              },
-            }}
-          >
-            Sign Up
-          </StyledButton>
+                color: 'white',
+                '&:hover': {
+                  borderColor: 'white',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                },
+              }}
+            >
+              Sign Up
+            </StyledButton>
+          </Box>
         </Box>
       </Container>
     </HeroSection>

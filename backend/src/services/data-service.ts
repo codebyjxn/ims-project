@@ -196,4 +196,47 @@ export class DataService {
   static isMigrated(): boolean {
     return DatabaseFactory.isMigrated();
   }
+
+  /**
+   * Get adapter directly (for advanced operations)
+   */
+  static getAdapter(): any {
+    return DatabaseFactory.getAdapter();
+  }
+
+  // ========== REFERRAL SYSTEM METHODS ==========
+
+  /**
+   * Get user by referral code
+   */
+  static async getUserByReferralCode(referralCode: string): Promise<any | null> {
+    const adapter = DatabaseFactory.getAdapter();
+    const result = await adapter.getUserByReferralCode(referralCode);
+    const data = result.rows || result.data || [];
+    return data.length > 0 ? data[0] : null;
+  }
+
+  /**
+   * Update user referral points
+   */
+  static async updateUserReferralPoints(userId: string, pointsToAdd: number): Promise<void> {
+    const adapter = DatabaseFactory.getAdapter();
+    await adapter.updateUserReferralPoints(userId, pointsToAdd);
+  }
+
+  /**
+   * Mark referral code as used for a fan
+   */
+  static async markReferralCodeUsed(fanId: string): Promise<void> {
+    const adapter = DatabaseFactory.getAdapter();
+    await adapter.markReferralCodeUsed(fanId);
+  }
+
+  /**
+   * Update fan's referrer
+   */
+  static async updateFanReferrer(fanId: string, referrerId: string): Promise<void> {
+    const adapter = DatabaseFactory.getAdapter();
+    await adapter.updateFanReferrer(fanId, referrerId);
+  }
 } 

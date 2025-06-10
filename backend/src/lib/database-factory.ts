@@ -53,6 +53,19 @@ export interface DatabaseAdapter {
 
   // Statistics
   getStats(): Promise<any>;
+
+  // Referral system operations
+  getUserByReferralCode(referralCode: string): Promise<DatabaseResult>;
+  updateUserReferralPoints(userId: string, pointsToAdd: number): Promise<DatabaseResult>;
+  markReferralCodeUsed(fanId: string): Promise<DatabaseResult>;
+  updateFanReferrer(fanId: string, referrerId: string): Promise<DatabaseResult>;
+
+  // Advanced query operations
+  query?(sql: string, params?: any[]): Promise<DatabaseResult>;
+  getTicketsByConcertAndZone?(concertId: string, zoneName: string): Promise<DatabaseResult>;
+  getConcertTicketSummary?(concertId: string): Promise<DatabaseResult>;
+  getUsersReferredBy?(fanId: string): Promise<DatabaseResult>;
+  getTicketsFromReferrals?(fanId: string): Promise<DatabaseResult>;
 }
 
 class PostgreSQLAdapter implements DatabaseAdapter {
@@ -165,13 +178,30 @@ class PostgreSQLAdapter implements DatabaseAdapter {
   async getConcerts(): Promise<DatabaseResult> {
     const result = await this.pool.query(`
       SELECT c.*,
-             json_agg(DISTINCT json_build_object('artist_id', a.artist_id, 'artist_name', a.artist_name, 'genre', a.genre)) as artists,
-             json_agg(DISTINCT json_build_object('zone_name', czp.zone_name, 'price', czp.price)) as zone_pricing
+             a.arena_name,
+             a.arena_location,
+             a.total_capacity as arena_capacity,
+             json_build_object(
+               'arena_id', a.arena_id,
+               'arena_name', a.arena_name,
+               'arena_location', a.arena_location,
+               'capacity', a.total_capacity
+             ) as arena,
+             COALESCE(
+               (SELECT json_agg(json_build_object('artist_id', ar.artist_id, 'artist_name', ar.artist_name, 'genre', ar.genre))
+                FROM concert_features_artists cfa
+                JOIN artists ar ON cfa.artist_id = ar.artist_id
+                WHERE cfa.concert_id = c.concert_id), 
+               '[]'::json
+             ) as artists,
+             COALESCE(
+               (SELECT json_agg(json_build_object('zone_name', czp.zone_name, 'price', czp.price))
+                FROM concert_zone_pricing czp
+                WHERE czp.concert_id = c.concert_id), 
+               '[]'::json
+             ) as zone_pricing
       FROM concerts c
-      LEFT JOIN concert_features_artists cfa ON c.concert_id = cfa.concert_id
-      LEFT JOIN artists a ON cfa.artist_id = a.artist_id
-      LEFT JOIN concert_zone_pricing czp ON c.concert_id = czp.concert_id
-      GROUP BY c.concert_id
+      LEFT JOIN arenas a ON c.arena_id = a.arena_id
       ORDER BY c.concert_date DESC
     `);
     return { rows: result.rows };
@@ -180,14 +210,21 @@ class PostgreSQLAdapter implements DatabaseAdapter {
   async getConcertById(id: string): Promise<DatabaseResult> {
     const result = await this.pool.query(`
       SELECT c.*,
-             json_agg(DISTINCT json_build_object('artist_id', a.artist_id, 'artist_name', a.artist_name, 'genre', a.genre)) as artists,
-             json_agg(DISTINCT json_build_object('zone_name', czp.zone_name, 'price', czp.price)) as zone_pricing
+             COALESCE(
+               (SELECT json_agg(json_build_object('artist_id', a.artist_id, 'artist_name', a.artist_name, 'genre', a.genre))
+                FROM concert_features_artists cfa
+                JOIN artists a ON cfa.artist_id = a.artist_id
+                WHERE cfa.concert_id = c.concert_id), 
+               '[]'::json
+             ) as artists,
+             COALESCE(
+               (SELECT json_agg(json_build_object('zone_name', czp.zone_name, 'price', czp.price))
+                FROM concert_zone_pricing czp
+                WHERE czp.concert_id = c.concert_id), 
+               '[]'::json
+             ) as zone_pricing
       FROM concerts c
-      LEFT JOIN concert_features_artists cfa ON c.concert_id = cfa.concert_id
-      LEFT JOIN artists a ON cfa.artist_id = a.artist_id
-      LEFT JOIN concert_zone_pricing czp ON c.concert_id = czp.concert_id
       WHERE c.concert_id = $1
-      GROUP BY c.concert_id
     `, [id]);
     return { rows: result.rows };
   }
@@ -262,6 +299,98 @@ class PostgreSQLAdapter implements DatabaseAdapter {
       tickets: parseInt(ticketsResult.rows[0].count)
     };
   }
+
+  // Referral system methods
+  async getUserByReferralCode(referralCode: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      SELECT u.*, f.username, f.preferred_genre, f.phone_number, f.referral_code, f.referral_points, f.referral_code_used, f.referred_by
+      FROM users u
+      JOIN fans f ON u.user_id = f.user_id
+      WHERE f.referral_code = $1
+    `, [referralCode]);
+    return { rows: result.rows };
+  }
+
+  async updateUserReferralPoints(userId: string, pointsToAdd: number): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      UPDATE fans 
+      SET referral_points = referral_points + $2 
+      WHERE user_id = $1 
+      RETURNING *
+    `, [userId, pointsToAdd]);
+    return { rows: result.rows };
+  }
+
+  async markReferralCodeUsed(fanId: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      UPDATE fans 
+      SET referral_code_used = true 
+      WHERE user_id = $1 
+      RETURNING *
+    `, [fanId]);
+    return { rows: result.rows };
+  }
+
+  async updateFanReferrer(fanId: string, referrerId: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      UPDATE fans 
+      SET referred_by = $2 
+      WHERE user_id = $1 
+      RETURNING *
+    `, [fanId, referrerId]);
+    return { rows: result.rows };
+  }
+
+  // Advanced query methods
+  async query(sql: string, params: any[] = []): Promise<DatabaseResult> {
+    const result = await this.pool.query(sql, params);
+    return { rows: result.rows };
+  }
+
+  async getTicketsByConcertAndZone(concertId: string, zoneName: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      SELECT * FROM tickets 
+      WHERE concert_id = $1 AND zone_name = $2
+    `, [concertId, zoneName]);
+    return { rows: result.rows };
+  }
+
+  async getConcertTicketSummary(concertId: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      SELECT 
+        t.zone_name,
+        COUNT(*) as tickets_sold,
+        SUM(czp.price) as revenue,
+        SUM(CASE WHEN t.referral_code_used THEN 1 ELSE 0 END) as referral_tickets
+      FROM tickets t
+      LEFT JOIN concert_zone_pricing czp ON t.concert_id = czp.concert_id AND t.zone_name = czp.zone_name
+      WHERE t.concert_id = $1
+      GROUP BY t.zone_name
+      ORDER BY t.zone_name
+    `, [concertId]);
+    return { rows: result.rows };
+  }
+
+  async getUsersReferredBy(fanId: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      SELECT u.*, f.username, f.referral_code_used
+      FROM users u
+      JOIN fans f ON u.user_id = f.user_id
+      WHERE f.referred_by = $1
+      ORDER BY u.registration_date DESC
+    `, [fanId]);
+    return { rows: result.rows };
+  }
+
+  async getTicketsFromReferrals(fanId: string): Promise<DatabaseResult> {
+    const result = await this.pool.query(`
+      SELECT t.*
+      FROM tickets t
+      JOIN fans f ON t.fan_id = f.user_id
+      WHERE f.referred_by = $1 AND t.referral_code_used = true
+    `, [fanId]);
+    return { rows: result.rows };
+  }
 }
 
 class MongoDBAdapter implements DatabaseAdapter {
@@ -332,7 +461,42 @@ class MongoDBAdapter implements DatabaseAdapter {
   }
 
   async getConcerts(): Promise<DatabaseResult> {
-    const data = await getConcertsCollection().find({}).sort({ concert_date: -1 }).toArray();
+    const pipeline = [
+      {
+        $lookup: {
+          from: 'arenas',
+          localField: 'arena_id',
+          foreignField: '_id',
+          as: 'arena_info'
+        }
+      },
+      {
+        $addFields: {
+          arena: {
+            $cond: {
+              if: { $eq: [{ $size: '$arena_info' }, 0] },
+              then: null,
+              else: {
+                arena_id: { $arrayElemAt: ['$arena_info._id', 0] },
+                arena_name: { $arrayElemAt: ['$arena_info.arena_name', 0] },
+                arena_location: { $arrayElemAt: ['$arena_info.arena_location', 0] },
+                capacity: { $arrayElemAt: ['$arena_info.total_capacity', 0] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          arena_info: 0
+        }
+      },
+      {
+        $sort: { concert_date: -1 }
+      }
+    ];
+    
+    const data = await getConcertsCollection().aggregate(pipeline).toArray();
     return { data };
   }
 
@@ -378,6 +542,99 @@ class MongoDBAdapter implements DatabaseAdapter {
     ]);
 
     return { users, artists, arenas, concerts, tickets };
+  }
+
+  // Referral system methods
+  async getUserByReferralCode(referralCode: string): Promise<DatabaseResult> {
+    const data = await getUsersCollection().find({ 
+      'fan_details.referral_code': referralCode 
+    }).toArray();
+    return { data };
+  }
+
+  async updateUserReferralPoints(userId: string, pointsToAdd: number): Promise<DatabaseResult> {
+    await getUsersCollection().updateOne(
+      { _id: userId },
+      { $inc: { 'fan_details.referral_points': pointsToAdd } }
+    );
+    const data = await getUsersCollection().find({ _id: userId }).toArray();
+    return { data };
+  }
+
+  async markReferralCodeUsed(fanId: string): Promise<DatabaseResult> {
+    await getUsersCollection().updateOne(
+      { _id: fanId },
+      { $set: { 'fan_details.referral_code_used': true } }
+    );
+    const data = await getUsersCollection().find({ _id: fanId }).toArray();
+    return { data };
+  }
+
+  async updateFanReferrer(fanId: string, referrerId: string): Promise<DatabaseResult> {
+    await getUsersCollection().updateOne(
+      { _id: fanId },
+      { $set: { 'fan_details.referred_by': referrerId } }
+    );
+    const data = await getUsersCollection().find({ _id: fanId }).toArray();
+    return { data };
+  }
+
+  // Advanced query methods
+  async query(sql: string, params: any[] = []): Promise<DatabaseResult> {
+    // MongoDB doesn't use SQL, so this is a placeholder
+    throw new Error('SQL queries not supported in MongoDB adapter');
+  }
+
+  async getTicketsByConcertAndZone(concertId: string, zoneName: string): Promise<DatabaseResult> {
+    const data = await getTicketsCollection().find({ 
+      concert_id: concertId, 
+      zone_name: zoneName 
+    }).toArray();
+    return { data };
+  }
+
+  async getConcertTicketSummary(concertId: string): Promise<DatabaseResult> {
+    const pipeline = [
+      { $match: { concert_id: concertId } },
+      {
+        $group: {
+          _id: '$zone_name',
+          tickets_sold: { $sum: 1 },
+          revenue: { $sum: '$price' },
+          referral_tickets: {
+            $sum: { $cond: ['$referral_code_used', 1, 0] }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ];
+    
+    const data = await getTicketsCollection().aggregate(pipeline).toArray();
+    return { data };
+  }
+
+  async getUsersReferredBy(fanId: string): Promise<DatabaseResult> {
+    const data = await getUsersCollection().find({ 
+      'fan_details.referred_by': fanId 
+    }).sort({ registration_date: -1 }).toArray();
+    return { data };
+  }
+
+  async getTicketsFromReferrals(fanId: string): Promise<DatabaseResult> {
+    // First get all users referred by this fan
+    const referredUsers = await getUsersCollection().find({ 
+      'fan_details.referred_by': fanId 
+    }).toArray();
+    
+    const referredUserIds = referredUsers.map((user: any) => user._id);
+    
+    // Then get tickets purchased by those users with referral code used
+    const data = await getTicketsCollection().find({ 
+      fan_id: { $in: referredUserIds },
+      referral_code_used: true
+    }).toArray();
+    
+    return { data };
   }
 }
 

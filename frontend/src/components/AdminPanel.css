@@ -2,7 +2,7 @@
 
 .admin-panel {
   min-height: 100vh;
-  background: #e8f5e8; /* Light green to test hot reloading */
+  background: #a0c3a0; /* Light green to test hot reloading */
   padding: 20px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }

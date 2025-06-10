@@ -10,6 +10,8 @@ import adminRoutes from './routes/admin';
 import ticketRoutes from './routes/tickets';
 import authRoutes from './routes/auth';
 import unifiedRoutes from './routes/unified';
+import concertRoutes from './routes/concerts';
+import referralRoutes from './routes/referrals';
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +30,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/concerts', concertRoutes);
+app.use('/api/referrals', referralRoutes);
 app.use('/api/unified', unifiedRoutes); // Database-agnostic routes
 
 // Health check endpoint
@@ -98,9 +102,25 @@ app.get('/api', (req, res) => {
         clear: 'DELETE /api/admin/clear'
       },
       tickets: {
+        validatePurchase: 'POST /api/tickets/validate-purchase',
         purchase: 'POST /api/tickets/purchase',
         userTickets: 'GET /api/tickets/user/:userId',
         concertSummary: 'GET /api/tickets/concert/:concertId/summary'
+      },
+      concerts: {
+        browse: 'GET /api/concerts',
+        upcoming: 'GET /api/concerts/upcoming',
+        details: 'GET /api/concerts/:concertId',
+        zones: 'GET /api/concerts/:concertId/zones',
+        zoneAvailability: 'GET /api/concerts/:concertId/zones/:zoneId/availability'
+      },
+      referrals: {
+        validate: 'POST /api/referrals/validate',
+        apply: 'POST /api/referrals/apply',
+        stats: 'GET /api/referrals/stats/:fanId',
+        myReferrals: 'GET /api/referrals/my-referrals/:fanId',
+        awardPoints: 'POST /api/referrals/award-points',
+        convertPoints: 'POST /api/referrals/convert-points'
       },
       unified: {
         databaseInfo: 'GET /api/unified/database-info',

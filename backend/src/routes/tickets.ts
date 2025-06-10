@@ -1,7 +1,10 @@
 import { Router } from 'express';
-import { purchaseTicket, getUserTickets, getConcertTicketSummary } from '../controllers/ticket-controller';
+import { purchaseTicket, getUserTickets, getConcertTicketSummary, validatePurchase } from '../controllers/ticket-controller';
 
 const router = Router();
+
+// Validate purchase before payment
+router.post('/validate-purchase', validatePurchase);
 
 // Purchase a ticket
 router.post('/purchase', purchaseTicket);

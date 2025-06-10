@@ -2,6 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LandingPage from './pages/LandingPage';
+import ConcertsPage from './pages/ConcertsPage';
+import ConcertDetailPage from './pages/ConcertDetailPage';
+import UserDashboard from './pages/UserDashboard';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
@@ -11,6 +14,34 @@ import './App.css';
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
+
+// Protected route wrapper for fan users
+const FanRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (user?.userType !== 'fan') {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        <h2>Access Denied</h2>
+        <p>This page is only available for fans.</p>
+        <p>User type: {user?.userType}</p>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
 };
 
 // Protected route wrapper for admin users only
@@ -49,6 +80,16 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/concerts" element={<ConcertsPage />} />
+          <Route path="/concerts/:id" element={<ConcertDetailPage />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <FanRoute>
+                <UserDashboard />
+              </FanRoute>
+            } 
+          />
           <Route 
             path="/admin" 
             element={

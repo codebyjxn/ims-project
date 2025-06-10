@@ -247,7 +247,6 @@ const AdminPanel: React.FC = () => {
       <header className="header">
         <div className="header-content">
           <div className="header-title">
-            <h1><Music className="header-icon" /> Joana Booking System</h1>
             <p className="subtitle">Admin Dashboard</p>
           </div>
           <div className="header-user">

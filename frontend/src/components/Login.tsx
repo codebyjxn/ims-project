@@ -30,7 +30,15 @@ export function Login() {
     try {
       const response = await api.login(formData);
       login(response.token, response.user);
-      navigate('/dashboard');
+      
+      // Navigate based on user type
+      if (response.user.userType === 'admin') {
+        navigate('/admin');
+      } else if (response.user.userType === 'fan') {
+        navigate('/dashboard');
+      } else {
+        navigate('/'); // Default to landing page for other user types
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login');
     } finally {
