@@ -5,6 +5,8 @@ import LandingPage from './pages/LandingPage';
 import ConcertsPage from './pages/ConcertsPage';
 import ConcertDetailPage from './pages/ConcertDetailPage';
 import UserDashboard from './pages/UserDashboard';
+import OrganizerDashboard from './pages/OrganizerDashboard';
+import OrganizerAnalytics from './pages/OrganizerAnalytics';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
@@ -36,6 +38,34 @@ const FanRoute = ({ children }: { children: React.ReactNode }) => {
       }}>
         <h2>Access Denied</h2>
         <p>This page is only available for fans.</p>
+        <p>User type: {user?.userType}</p>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+};
+
+// Protected route wrapper for organizer users
+const OrganizerRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (user?.userType !== 'organizer') {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        <h2>Access Denied</h2>
+        <p>This page is only available for event organizers.</p>
         <p>User type: {user?.userType}</p>
       </div>
     );
@@ -88,6 +118,22 @@ function App() {
               <FanRoute>
                 <UserDashboard />
               </FanRoute>
+            } 
+          />
+          <Route 
+            path="/organizers" 
+            element={
+              <OrganizerRoute>
+                <OrganizerDashboard />
+              </OrganizerRoute>
+            } 
+          />
+          <Route 
+            path="/organizers/analytics" 
+            element={
+              <OrganizerRoute>
+                <OrganizerAnalytics />
+              </OrganizerRoute>
             } 
           />
           <Route 

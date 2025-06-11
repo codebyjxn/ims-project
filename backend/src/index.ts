@@ -12,6 +12,7 @@ import authRoutes from './routes/auth';
 import unifiedRoutes from './routes/unified';
 import concertRoutes from './routes/concerts';
 import referralRoutes from './routes/referrals';
+import organizerRoutes from './routes/organizer';
 
 // Load environment variables
 dotenv.config();
@@ -32,6 +33,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/concerts', concertRoutes);
 app.use('/api/referrals', referralRoutes);
+app.use('/api/organizer', organizerRoutes);
 app.use('/api/unified', unifiedRoutes); // Database-agnostic routes
 
 // Health check endpoint
@@ -121,6 +123,17 @@ app.get('/api', (req, res) => {
         myReferrals: 'GET /api/referrals/my-referrals/:fanId',
         awardPoints: 'POST /api/referrals/award-points',
         convertPoints: 'POST /api/referrals/convert-points'
+      },
+      organizer: {
+        concerts: 'GET /api/organizer/concerts/:organizerId',
+        stats: 'GET /api/organizer/stats/:organizerId',
+        arenas: 'GET /api/organizer/arenas',
+        artists: 'GET /api/organizer/artists',
+        createConcert: 'POST /api/organizer/concerts',
+        concertDetails: 'GET /api/organizer/concerts/:concertId/details',
+        updateConcert: 'PUT /api/organizer/concerts/:concertId',
+        deleteConcert: 'DELETE /api/organizer/concerts/:concertId',
+        analytics: 'GET /api/organizer/concerts/:concertId/analytics'
       },
       unified: {
         databaseInfo: 'GET /api/unified/database-info',

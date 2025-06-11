@@ -115,6 +115,70 @@ export interface ReferralValidation {
   message: string;
 }
 
+// Organizer-specific interfaces
+export interface Arena {
+  arena_id: string;
+  arena_name: string;
+  arena_location: string;
+  total_capacity: number;
+  zones: {
+    zone_name: string;
+    capacity_per_zone: number;
+  }[];
+}
+
+export interface Artist {
+  artist_id: string;
+  artist_name: string;
+  genre: string;
+}
+
+export interface OrganizerConcert {
+  concert_id: string;
+  title: string;
+  date: string;
+  time: string;
+  arena: {
+    name: string;
+    location: string;
+    capacity: number;
+  };
+  artists: {
+    name: string;
+    genre: string;
+  }[];
+  ticketsSold: number;
+  totalRevenue: number;
+  status: 'upcoming' | 'ongoing' | 'completed';
+}
+
+export interface OrganizerStats {
+  totalConcerts: number;
+  upcomingConcerts: number;
+  totalTicketsSold: number;
+  totalRevenue: number;
+  averageAttendance: number;
+}
+
+export interface ConcertCreationData {
+  organizerId?: string; // Optional - backend will auto-assign from authenticated user
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  arenaId: string;
+  zones: {
+    zone_name: string;
+    capacity_per_zone: number;
+    price: number;
+  }[];
+  artists: string[];
+  collaborations: {
+    artist1: string;
+    artist2: string;
+  }[];
+}
+
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -201,6 +265,57 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ referralCode: code }),
     });
+  }
+
+  // Organizer-specific methods
+  async getOrganizerConcerts(organizerId?: string): Promise<OrganizerConcert[]> {
+    if (!organizerId) {
+      throw new Error('Organizer ID is required');
+    }
+    return this.request<OrganizerConcert[]>(`/organizer/concerts/${organizerId}`);
+  }
+
+  async getOrganizerStats(organizerId?: string): Promise<OrganizerStats> {
+    if (!organizerId) {
+      throw new Error('Organizer ID is required');
+    }
+    return this.request<OrganizerStats>(`/organizer/stats/${organizerId}`);
+  }
+
+  async getArenas(): Promise<Arena[]> {
+    return this.request<Arena[]>('/organizer/arenas');
+  }
+
+  async getArtists(): Promise<Artist[]> {
+    return this.request<Artist[]>('/organizer/artists');
+  }
+
+  async createConcert(data: ConcertCreationData): Promise<{ message: string; concertId: string }> {
+    return this.request<{ message: string; concertId: string }>('/organizer/concerts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getConcertDetails(concertId: string): Promise<OrganizerConcert> {
+    return this.request<OrganizerConcert>(`/organizer/concerts/${concertId}/details`);
+  }
+
+  async updateConcert(concertId: string, data: Partial<ConcertCreationData>): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/organizer/concerts/${concertId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteConcert(concertId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/organizer/concerts/${concertId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getConcertAnalytics(concertId: string): Promise<any> {
+    return this.request(`/organizer/concerts/${concertId}/analytics`);
   }
 }
 
