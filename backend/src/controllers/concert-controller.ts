@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { DataService } from '../services/data-service';
+import { ConcertService } from '../services/concert-service';
 
 export class ConcertController {
 
@@ -17,7 +18,7 @@ export class ConcertController {
         organizer 
       } = req.query;
 
-      const concerts = await DataService.getAllConcerts();
+      const concerts = await ConcertService.getAllConcerts();
       
       // Apply filters
       let filteredConcerts = concerts;
@@ -96,29 +97,20 @@ export class ConcertController {
         return;
       }
 
-      const concert = await DataService.getConcertById(concertId);
-      if (!concert) {
+      // Use ConcertService to get properly mapped data
+      const concertWithDetails = await ConcertService.getConcertWithArenaDetails(concertId);
+      if (!concertWithDetails) {
         res.status(404).json({ error: 'Concert not found' });
         return;
       }
 
-      // Get arena details for zone information
-      const arena = await DataService.getArenaById(concert.arena_id);
-      if (!arena) {
-        res.status(404).json({ error: 'Arena not found' });
-        return;
-      }
-
-      // Get zone availability and pricing
-      const zonesWithAvailability = await this.getZonesWithAvailability(concertId, arena);
-
       res.json({
         success: true,
         concert: {
-          ...concert,
+          ...concertWithDetails.concert,
           arena: {
-            ...arena,
-            zones: zonesWithAvailability
+            ...concertWithDetails.arena,
+            zones: concertWithDetails.zones
           }
         },
         database: DataService.getCurrentDatabaseType()
@@ -145,25 +137,18 @@ export class ConcertController {
         return;
       }
 
-      const concert = await DataService.getConcertById(concertId);
-      if (!concert) {
+      // Use ConcertService to get properly mapped data
+      const concertWithDetails = await ConcertService.getConcertWithArenaDetails(concertId);
+      if (!concertWithDetails) {
         res.status(404).json({ error: 'Concert not found' });
         return;
       }
 
-      const arena = await DataService.getArenaById(concert.arena_id);
-      if (!arena) {
-        res.status(404).json({ error: 'Arena not found' });
-        return;
-      }
-
-      const zonesWithAvailability = await this.getZonesWithAvailability(concertId, arena);
-
       res.json({
         success: true,
-        concertId,
-        arenaId: concert.arena_id,
-        zones: zonesWithAvailability,
+        concertId: concertWithDetails.concert.concert_id,
+        arenaId: concertWithDetails.concert.arena_id,
+        zones: concertWithDetails.zones,
         database: DataService.getCurrentDatabaseType()
       });
 
@@ -188,24 +173,19 @@ export class ConcertController {
         return;
       }
 
-      const concert = await DataService.getConcertById(concertId);
-      if (!concert) {
-        res.status(404).json({ error: 'Concert not found' });
-        return;
-      }
-
-      const availabilityInfo = await this.getZoneAvailabilityInfo(concertId, zoneId);
+      // Use ConcertService to get properly mapped zone availability
+      const availability = await ConcertService.getZoneAvailability(concertId, zoneId);
       
-      if (!availabilityInfo.exists) {
-        res.status(404).json({ error: 'Zone not found for this concert' });
+      if (!availability) {
+        res.status(404).json({ error: 'Concert or zone not found' });
         return;
       }
 
       res.json({
         success: true,
-        concertId,
-        zoneId,
-        availability: availabilityInfo,
+        concertId: availability.concert_id,
+        zoneId: availability.zone_name,
+        availability,
         database: DataService.getCurrentDatabaseType()
       });
 
@@ -225,50 +205,17 @@ export class ConcertController {
     try {
       const { limit = 10, genre } = req.query;
       
-      const allConcerts = await DataService.getAllConcerts();
-      const now = new Date();
-      
-      // Filter for upcoming concerts
-      let upcomingConcerts = allConcerts.filter((concert: any) => {
-        const concertDate = new Date(concert.concert_date);
-        return concertDate > now;
-      });
-
-      // Filter by genre if specified
-      if (genre) {
-        upcomingConcerts = upcomingConcerts.filter((concert: any) => {
-          // Handle both PostgreSQL JSON array and MongoDB array formats
-          let artists = concert.artists;
-          
-          // If artists is a string (PostgreSQL JSON), parse it
-          if (typeof artists === 'string') {
-            try {
-              artists = JSON.parse(artists);
-            } catch (e) {
-              return false;
-            }
-          }
-          
-          // Check if artists is an array and filter
-          return Array.isArray(artists) && artists.some((artist: any) => 
-            artist.genre?.toLowerCase().includes((genre as string).toLowerCase())
-          );
-        });
-      }
-
-      // Sort by date (earliest first)
-      upcomingConcerts.sort((a: any, b: any) => 
-        new Date(a.concert_date).getTime() - new Date(b.concert_date).getTime()
+      // Use ConcertService to get properly mapped upcoming concerts
+      const upcomingConcerts = await ConcertService.getUpcomingConcerts(
+        limit ? parseInt(limit as string) : undefined,
+        genre as string
       );
-
-      // Apply limit
-      const limitedConcerts = upcomingConcerts.slice(0, parseInt(limit as string));
 
       res.json({
         success: true,
-        count: limitedConcerts.length,
+        count: upcomingConcerts.length,
         total: upcomingConcerts.length,
-        concerts: limitedConcerts,
+        concerts: upcomingConcerts,
         database: DataService.getCurrentDatabaseType()
       });
 

@@ -7,6 +7,7 @@ import { getUsersCollection, IUser } from '../models/mongodb-schemas';
 import { getPool } from '../lib/postgres';
 import { DatabaseFactory } from '../lib/database-factory';
 import { migrationStatus } from '../services/migration-status';
+import { mongoManager } from '../lib/mongodb-connection';
 
 export class AuthController {
   // Register a new user
@@ -205,8 +206,21 @@ export class AuthController {
           firstName: newUser.first_name,
           lastName: newUser.last_name,
           userType: newUser.user_type,
-          ...(userType === 'fan' ? { fanDetails: newUser.fan_details } : {}),
-          ...(userType === 'organizer' ? { organizerDetails: newUser.organizer_details } : {})
+          ...(userType === 'fan' ? { 
+            fanDetails: {
+              username: newUser.fan_details?.username,
+              preferredGenre: newUser.fan_details?.preferred_genre,
+              phoneNumber: newUser.fan_details?.phone_number,
+              referralCode: newUser.fan_details?.referral_code,
+              referralPoints: newUser.fan_details?.referral_points
+            }
+          } : {}),
+          ...(userType === 'organizer' ? { 
+            organizerDetails: {
+              organizationName: newUser.organizer_details?.organization_name,
+              contactInfo: newUser.organizer_details?.contact_info
+            }
+          } : {})
         }
       });
     } catch (error) {
@@ -231,27 +245,33 @@ export class AuthController {
       let user: any;
 
       if (currentDb === 'mongodb') {
-        // MongoDB login
-        const usersCollection = getUsersCollection();
-        user = await usersCollection.findOne({ email });
-        
-        if (!user) {
-          res.status(401).json({ error: 'Invalid credentials' });
+        // MongoDB login using connection manager
+        try {
+          const collection = await mongoManager.getCollection<IUser>('users');
+          user = await collection.findOne({ email });
+          
+          if (!user) {
+            res.status(401).json({ error: 'Invalid credentials' });
+            return;
+          }
+
+          // Verify password
+          const isValidPassword = await bcrypt.compare(password, user.user_password);
+          if (!isValidPassword) {
+            res.status(401).json({ error: 'Invalid credentials' });
+            return;
+          }
+
+          // Update last login
+          await collection.updateOne(
+            { _id: user._id },
+            { $set: { last_login: new Date() } }
+          );
+        } catch (mongoError) {
+          console.error('MongoDB connection error in login:', mongoError);
+          res.status(500).json({ error: 'Database connection error' });
           return;
         }
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.user_password);
-        if (!isValidPassword) {
-          res.status(401).json({ error: 'Invalid credentials' });
-          return;
-        }
-
-        // Update last login
-        await usersCollection.updateOne(
-          { _id: user._id },
-          { $set: { last_login: new Date() } }
-        );
       } else {
         // PostgreSQL login
         const pool = getPool();
@@ -332,8 +352,21 @@ export class AuthController {
           firstName: user.first_name,
           lastName: user.last_name,
           userType: user.user_type,
-          ...(user.user_type === 'fan' ? { fanDetails: user.fan_details } : {}),
-          ...(user.user_type === 'organizer' ? { organizerDetails: user.organizer_details } : {})
+          ...(user.user_type === 'fan' ? { 
+            fanDetails: {
+              username: user.fan_details?.username,
+              preferredGenre: user.fan_details?.preferred_genre,
+              phoneNumber: user.fan_details?.phone_number,
+              referralCode: user.fan_details?.referral_code,
+              referralPoints: user.fan_details?.referral_points
+            }
+          } : {}),
+          ...(user.user_type === 'organizer' ? { 
+            organizerDetails: {
+              organizationName: user.organizer_details?.organization_name,
+              contactInfo: user.organizer_details?.contact_info
+            }
+          } : {})
         }
       });
     } catch (error) {

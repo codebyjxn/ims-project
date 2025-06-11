@@ -257,7 +257,67 @@ class ApiService {
   }
 
   async getUserTickets(): Promise<UserTicket[]> {
-    return this.request<UserTicket[]>('/tickets/user');
+    const response = await this.request<{ success: boolean; count: number; tickets: any[] }>('/tickets/my-tickets');
+    
+    if (!response.success) {
+      throw new Error('Failed to fetch tickets');
+    }
+
+    // Map backend TicketDTO format to frontend UserTicket format
+    const tickets = await Promise.all(
+      response.tickets.map(async (ticket: any) => {
+        try {
+          // Get concert details for each ticket
+          const concert = await this.getConcertById(ticket.concert_id);
+          
+          return {
+            id: ticket.ticket_id,
+            concert: {
+              id: ticket.concert_id,
+              title: concert.concert_name || 'Concert',
+              date: concert.concert_date,
+              startTime: concert.time,
+              arena: {
+                name: concert.arena?.arena_name || 'Unknown Arena',
+                location: concert.arena?.arena_location || 'Unknown Location'
+              }
+            },
+            zone: {
+              id: ticket.zone_name,
+              name: ticket.zone_name
+            },
+            quantity: 1, // Tickets are individual entries
+            totalPrice: parseFloat(ticket.price) || 0,
+            purchaseDate: ticket.purchase_date
+          };
+        } catch (error) {
+          console.error('Error mapping ticket:', error);
+          // Return a basic ticket structure if concert fetch fails
+          return {
+            id: ticket.ticket_id,
+            concert: {
+              id: ticket.concert_id,
+              title: 'Concert Details Unavailable',
+              date: ticket.concert_date || new Date().toISOString(),
+              startTime: '20:00',
+              arena: {
+                name: 'Unknown Arena',
+                location: 'Unknown Location'
+              }
+            },
+            zone: {
+              id: ticket.zone_name,
+              name: ticket.zone_name
+            },
+            quantity: 1,
+            totalPrice: parseFloat(ticket.price) || 0,
+            purchaseDate: ticket.purchase_date
+          };
+        }
+      })
+    );
+
+    return tickets;
   }
 
   async validateReferralCode(code: string): Promise<ReferralValidation> {

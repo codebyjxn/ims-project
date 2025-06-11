@@ -15,9 +15,10 @@ import {
   Divider,
   AppBar,
   Toolbar,
-  IconButton
+  IconButton,
+  Skeleton
 } from '@mui/material';
-import { CalendarDays, MapPin, Ticket, Gift, LogOut, User, CreditCard } from 'lucide-react';
+import { CalendarDays, MapPin, Ticket, Gift, LogOut, User, CreditCard, RefreshCw } from 'lucide-react';
 import { api, UserTicket } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -28,6 +29,7 @@ const UserDashboard: React.FC = () => {
   const [tickets, setTickets] = useState<UserTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadUserTickets();
@@ -35,15 +37,23 @@ const UserDashboard: React.FC = () => {
 
   const loadUserTickets = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       const data = await api.getUserTickets();
+      console.log('Loaded tickets:', data);
       setTickets(data);
       setError(null);
     } catch (err) {
+      console.error('Error loading tickets:', err);
       setError(err instanceof Error ? err.message : 'Failed to load tickets');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadUserTickets();
   };
 
   const formatDate = (dateString: string) => {
@@ -79,13 +89,28 @@ const UserDashboard: React.FC = () => {
     navigate('/concerts');
   };
 
-  if (loading) {
+  // Helper to safely get fan details
+  const getFanDetails = () => {
+    if (user?.userType === 'fan' && user.fanDetails) {
+      return user.fanDetails;
+    }
+    return null;
+  };
+
+  if (loading && !refreshing) {
     return (
       <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <CircularProgress />
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            Loading your dashboard...
+          </Typography>
+        </Box>
       </Container>
     );
   }
+
+  const fanDetails = getFanDetails();
 
   return (
     <Box>
@@ -113,7 +138,7 @@ const UserDashboard: React.FC = () => {
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         {/* User Info Card */}
-        {user?.userType === 'fan' && user.fanDetails && (
+        {fanDetails && (
           <Card sx={{ mb: 4 }}>
             <CardContent>
               <Typography variant="h5" gutterBottom>
@@ -122,14 +147,19 @@ const UserDashboard: React.FC = () => {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Typography variant="body1" gutterBottom>
-                    <strong>Username:</strong> {user.fanDetails.username}
+                    <strong>Username:</strong> {fanDetails.username || 'Not set'}
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    <strong>Email:</strong> {user.email}
+                    <strong>Email:</strong> {user?.email}
                   </Typography>
                   <Typography variant="body1" gutterBottom>
-                    <strong>Preferred Genre:</strong> {user.fanDetails.preferredGenre || 'Not specified'}
+                    <strong>Preferred Genre:</strong> {fanDetails.preferredGenre || 'Not specified'}
                   </Typography>
+                  {fanDetails.phoneNumber && (
+                    <Typography variant="body1" gutterBottom>
+                      <strong>Phone:</strong> {fanDetails.phoneNumber}
+                    </Typography>
+                  )}
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Paper sx={{ p: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
@@ -138,10 +168,10 @@ const UserDashboard: React.FC = () => {
                       <Typography variant="h6">Referral Program</Typography>
                     </Box>
                     <Typography variant="body2" gutterBottom>
-                      Your Referral Code: <strong>{user.fanDetails.referralCode}</strong>
+                      Your Referral Code: <strong>{fanDetails.referralCode || 'Not available'}</strong>
                     </Typography>
                     <Typography variant="body2">
-                      Referral Points: <strong>{user.fanDetails.referralPoints}</strong>
+                      Referral Points: <strong>{fanDetails.referralPoints || 0}</strong>
                     </Typography>
                     <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                       Share your code with friends! You earn 5 points per ticket they buy.
@@ -155,13 +185,24 @@ const UserDashboard: React.FC = () => {
         )}
 
         {/* Tickets Section */}
-        <Typography variant="h4" component="h1" gutterBottom>
-          My Tickets
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h4" component="h1">
+            My Tickets
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={refreshing ? <CircularProgress size={16} /> : <RefreshCw size={16} />}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            size="small"
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} action={
-            <Button color="inherit" size="small" onClick={loadUserTickets}>
+            <Button color="inherit" size="small" onClick={handleRefresh}>
               Retry
             </Button>
           }>
@@ -169,7 +210,21 @@ const UserDashboard: React.FC = () => {
           </Alert>
         )}
 
-        {tickets.length === 0 ? (
+        {refreshing && tickets.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            {[1, 2, 3].map((index) => (
+              <Card key={index} sx={{ mb: 2 }}>
+                <CardContent>
+                  <Skeleton variant="text" width="60%" height={28} />
+                  <Skeleton variant="text" width="40%" height={20} sx={{ mt: 1 }} />
+                  <Skeleton variant="text" width="80%" height={20} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        )}
+
+        {!refreshing && tickets.length === 0 ? (
           <Paper sx={{ p: 6, textAlign: 'center' }}>
             <Ticket size={64} color="#ccc" style={{ marginBottom: 16 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -186,39 +241,49 @@ const UserDashboard: React.FC = () => {
               Browse Concerts
             </Button>
           </Paper>
-        ) : (
+        ) : !refreshing && (
           <Grid container spacing={3}>
             {tickets.map((ticket) => (
               <Grid item xs={12} md={6} lg={4} key={ticket.id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Card sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  '&:hover': {
+                    boxShadow: 4,
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.2s ease-in-out'
+                  }
+                }}>
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Typography variant="h6" component="h3">
+                      <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
                         {ticket.concert.title}
                       </Typography>
                       <Chip 
                         label={ticket.zone.name} 
                         color="primary" 
                         size="small"
+                        sx={{ fontWeight: 'bold' }}
                       />
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <CalendarDays size={16} style={{ marginRight: 8 }} />
+                      <CalendarDays size={16} style={{ marginRight: 8, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
                         {formatDate(ticket.concert.date)} at {formatTime(ticket.concert.startTime)}
                       </Typography>
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <MapPin size={16} style={{ marginRight: 8 }} />
+                      <MapPin size={16} style={{ marginRight: 8, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
                         {ticket.concert.arena.name}, {ticket.concert.arena.location}
                       </Typography>
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Ticket size={16} style={{ marginRight: 8 }} />
+                      <Ticket size={16} style={{ marginRight: 8, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
                         {ticket.quantity} ticket{ticket.quantity > 1 ? 's' : ''}
                       </Typography>
@@ -230,7 +295,7 @@ const UserDashboard: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         Purchased: {formatPurchaseDate(ticket.purchaseDate)}
                       </Typography>
-                      <Typography variant="h6" color="primary">
+                      <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
                         ${ticket.totalPrice.toFixed(2)}
                       </Typography>
                     </Box>
@@ -242,7 +307,7 @@ const UserDashboard: React.FC = () => {
         )}
 
         {/* Quick Stats */}
-        {tickets.length > 0 && (
+        {!refreshing && tickets.length > 0 && (
           <Card sx={{ mt: 4 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -251,7 +316,7 @@ const UserDashboard: React.FC = () => {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" color="primary">
+                    <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
                       {tickets.length}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -261,7 +326,7 @@ const UserDashboard: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" color="primary">
+                    <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
                       {tickets.reduce((sum, ticket) => sum + ticket.quantity, 0)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -271,7 +336,7 @@ const UserDashboard: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" color="primary">
+                    <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
                       ${tickets.reduce((sum, ticket) => sum + ticket.totalPrice, 0).toFixed(0)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">

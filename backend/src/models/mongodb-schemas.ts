@@ -105,7 +105,7 @@ export const connectMongoDB = async (): Promise<void> => {
 };
 
 export const getDatabase = (): Db => {
-  if (!db) {
+  if (!db || !client) {
     throw new Error('Database not connected. Call connectMongoDB() first.');
   }
   return db;
@@ -119,23 +119,28 @@ export const closeMongoDB = async (): Promise<void> => {
 
 // ========== COLLECTION GETTERS ==========
 export const getUsersCollection = (): Collection<IUser> => {
-  return getDatabase().collection<IUser>('users');
+  const database = getDatabase();
+  return database.collection<IUser>('users');
 };
 
 export const getArtistsCollection = (): Collection<IArtist> => {
-  return getDatabase().collection<IArtist>('artists');
+  const database = getDatabase();
+  return database.collection<IArtist>('artists');
 };
 
 export const getArenasCollection = (): Collection<IArena> => {
-  return getDatabase().collection<IArena>('arenas');
+  const database = getDatabase();
+  return database.collection<IArena>('arenas');
 };
 
 export const getConcertsCollection = (): Collection<IConcert> => {
-  return getDatabase().collection<IConcert>('concerts');
+  const database = getDatabase();
+  return database.collection<IConcert>('concerts');
 };
 
 export const getTicketsCollection = (): Collection<ITicket> => {
-  return getDatabase().collection<ITicket>('tickets');
+  const database = getDatabase();
+  return database.collection<ITicket>('tickets');
 };
 
 // ========== INDEX CREATION ==========
