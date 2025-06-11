@@ -36,6 +36,8 @@ export function Login() {
         navigate('/admin');
       } else if (response.user.userType === 'fan') {
         navigate('/dashboard');
+      } else if (response.user.userType === 'organizer') {
+        navigate('/organizers');
       } else {
         navigate('/'); // Default to landing page for other user types
       }
