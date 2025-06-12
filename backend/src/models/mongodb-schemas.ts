@@ -1,4 +1,5 @@
 import { MongoClient, Db, Collection } from 'mongodb';
+import { mongoManager } from '../lib/mongodb-connection'; // Use the robust singleton connection manager
 
 // ========== NATIVE MONGODB INTERFACES ==========
 // These are plain TypeScript interfaces, not ORM/ODM schemas
@@ -90,14 +91,18 @@ let db: Db;
 
 export const connectMongoDB = async (): Promise<void> => {
   try {
-    const mongoUrl = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-    const dbName = process.env.MONGODB_DB || 'concert_booking';
-    
-    client = new MongoClient(mongoUrl);
-    await client.connect();
-    db = client.db(dbName);
-    
-    console.log('Connected to MongoDB successfully');
+    // Ensure the singleton client is connected
+    await mongoManager.connect();
+
+    // Cache for sync getters
+    db = await mongoManager.getDatabase();
+    // mongoManager exposes its client internally; cast to any to grab it for legacy code
+    // Note: direct client usage should be avoided going forward.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - accessing private prop in rare case we still need it
+    client = (mongoManager as any).client as MongoClient;
+
+    console.log('Connected to MongoDB successfully (via mongoManager)');
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     throw error;
@@ -105,16 +110,16 @@ export const connectMongoDB = async (): Promise<void> => {
 };
 
 export const getDatabase = (): Db => {
-  if (!db || !client) {
+  if (!db) {
     throw new Error('Database not connected. Call connectMongoDB() first.');
   }
   return db;
 };
 
 export const closeMongoDB = async (): Promise<void> => {
-  if (client) {
-    await client.close();
-  }
+  await mongoManager.close();
+  db = undefined as unknown as Db;
+  client = undefined as unknown as MongoClient;
 };
 
 // ========== COLLECTION GETTERS ==========

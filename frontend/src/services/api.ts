@@ -160,6 +160,16 @@ export interface OrganizerStats {
   averageAttendance: number;
 }
 
+export interface UpcomingConcertPerformance {
+  concert_id: string;
+  concert_name: string;
+  concert_date: string;
+  description: string;
+  arena_name: string;
+  artists: string;
+  tickets_sold: number;
+}
+
 export interface ConcertCreationData {
   organizerId?: string; // Optional - backend will auto-assign from authenticated user
   title: string;
@@ -180,21 +190,25 @@ export interface ConcertCreationData {
 }
 
 class ApiService {
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, isPublic: boolean = false): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem('token');
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
     };
 
-    const response = await fetch(url, { ...options, headers });
+    if (!isPublic) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'Something went wrong');
+      throw new Error(data.message || data.error || 'Something went wrong');
     }
 
     return data;
@@ -340,6 +354,23 @@ class ApiService {
       throw new Error('Organizer ID is required');
     }
     return this.request<OrganizerStats>(`/organizer/stats/${organizerId}`);
+  }
+
+  async getUpcomingConcertsPerformance(): Promise<UpcomingConcertPerformance[]> {
+    return this.request<UpcomingConcertPerformance[]>('/analytics/upcoming-performance');
+  }
+
+  async getHealth(): Promise<any> {
+    // Requires admin authentication, so use default (isPublic = false)
+    return this.request<any>('/admin/health');
+  }
+
+  async seedDatabase(): Promise<any> {
+    return this.request<any>('/admin/seed', { method: 'POST' });
+  }
+
+  async migrateToNoSQL(): Promise<any> {
+    return this.request<any>('/admin/migrate', { method: 'POST' });
   }
 
   async getArenas(): Promise<Arena[]> {

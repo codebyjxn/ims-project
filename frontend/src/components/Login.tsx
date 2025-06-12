@@ -50,6 +50,7 @@ export function Login() {
 
   return (
     <div className="auth-container">
+      <Link to="/" className="back-to-home">← Back to Home</Link>
       <div className="auth-box">
         <h2>Welcome Back!</h2>
         {error && <div className="error-message">{error}</div>}

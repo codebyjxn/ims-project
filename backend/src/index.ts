@@ -8,14 +8,13 @@ import { mongoManager } from './lib/mongodb-connection';
 import { migrationStatus } from './services/migration-status';
 import { createAdminUser } from './scripts/create-admin';
 import adminRoutes from './routes/admin';
-import ticketRoutes from './routes/tickets';
 import authRoutes from './routes/auth';
 import unifiedRoutes from './routes/unified';
-import concertRoutes from './routes/concerts';
 import cleanConcertRoutes from './routes/clean-concerts';
 import cleanTicketRoutes from './routes/clean-ticket-routes';
 import referralRoutes from './routes/referrals';
 import organizerRoutes from './routes/organizer';
+import analyticsRoutes from './routes/analytics';
 
 // Load environment variables
 dotenv.config();
@@ -33,11 +32,12 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/tickets', cleanTicketRoutes); // Use clean tickets with proper authentication and DTO mapping
-app.use('/api/concerts', cleanConcertRoutes); // Use clean concerts with proper DTO mapping
+app.use('/api/tickets', cleanTicketRoutes);
+app.use('/api/concerts', cleanConcertRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/organizer', organizerRoutes);
-app.use('/api/unified', unifiedRoutes); // Database-agnostic routes
+app.use('/api/unified', unifiedRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {

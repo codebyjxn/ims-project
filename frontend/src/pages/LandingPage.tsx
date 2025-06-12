@@ -59,7 +59,7 @@ const LandingPage: React.FC = () => {
           Book your favorite concerts with ease. Experience live music like never before.
         </Typography>
 
-        <Box sx={{ mt: 4 }}>
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
           <StyledButton
             variant="contained"
             color="secondary"
@@ -70,45 +70,40 @@ const LandingPage: React.FC = () => {
               '&:hover': {
                 backgroundColor: '#e55a2e',
               },
-              mb: 2
             }}
           >
             Browse Concerts
           </StyledButton>
           
-          <Box sx={{ display: 'block' }}>
-            <StyledButton
-              variant="contained"
-              color="primary"
-              size="large"
-              onClick={() => navigate('/login')}
-              sx={{
-                backgroundColor: '#1DB954',
-                '&:hover': {
-                  backgroundColor: '#1ed760',
-                },
-              }}
-            >
-              Login
-            </StyledButton>
-            
-            <StyledButton
-              variant="outlined"
-              color="inherit"
-              size="large"
-              onClick={() => navigate('/signup')}
-              sx={{
-                borderColor: 'white',
-                color: 'white',
-                '&:hover': {
-                  borderColor: 'white',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                },
-              }}
-            >
-              Sign Up
-            </StyledButton>
-          </Box>
+          <StyledButton
+            variant="outlined"
+            size="large"
+            onClick={() => navigate('/login')}
+            sx={{
+              borderColor: 'white',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Login
+          </StyledButton>
+          
+          <StyledButton
+            variant="outlined"
+            size="large"
+            onClick={() => navigate('/signup')}
+            sx={{
+              borderColor: 'white',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Sign Up
+          </StyledButton>
         </Box>
       </Container>
     </HeroSection>

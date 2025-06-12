@@ -113,24 +113,32 @@ const UserDashboard: React.FC = () => {
   const fanDetails = getFanDetails();
 
   return (
-    <Box>
+    <Box sx={{ backgroundColor: '#f4f6f8', minHeight: '100vh' }}>
       {/* Top Navigation */}
-      <AppBar position="static" color="primary">
+      <AppBar 
+        position="static" 
+        elevation={0}
+        sx={{ 
+          backgroundColor: 'white', 
+          color: '#333',
+          borderBottom: '1px solid #e0e0e0'
+        }}
+      >
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <User size={24} style={{ marginRight: 12 }} />
-            <Typography variant="h6">
+            <User size={24} style={{ marginRight: 12, color: '#666' }} />
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
               {user?.firstName} {user?.lastName}
             </Typography>
           </Box>
           <Button 
-            color="inherit" 
+            variant="outlined"
             onClick={handleBrowseConcerts}
-            sx={{ mr: 2 }}
+            sx={{ mr: 2, borderColor: '#ccc', color: '#555', '&:hover': { backgroundColor: '#f0f0f0', borderColor: '#bbb' } }}
           >
             Browse Concerts
           </Button>
-          <IconButton color="inherit" onClick={handleLogout}>
+          <IconButton onClick={handleLogout} sx={{ color: '#555' }}>
             <LogOut size={20} />
           </IconButton>
         </Toolbar>
@@ -139,9 +147,9 @@ const UserDashboard: React.FC = () => {
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         {/* User Info Card */}
         {fanDetails && (
-          <Card sx={{ mb: 4 }}>
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
+          <Card sx={{ mb: 4, borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
                 Your Account
               </Typography>
               <Grid container spacing={3}>
@@ -162,7 +170,15 @@ const UserDashboard: React.FC = () => {
                   )}
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Paper sx={{ p: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+                  <Paper 
+                    sx={{ 
+                      p: 2, 
+                      bgcolor: '#e9f5ff', 
+                      color: '#0d47a1', 
+                      borderRadius: 2,
+                      border: '1px solid #b3e5fc'
+                    }}
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <Gift size={20} style={{ marginRight: 8 }} />
                       <Typography variant="h6">Referral Program</Typography>
@@ -185,8 +201,8 @@ const UserDashboard: React.FC = () => {
         )}
 
         {/* Tickets Section */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h4" component="h1">
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
             My Tickets
           </Typography>
           <Button
@@ -225,7 +241,7 @@ const UserDashboard: React.FC = () => {
         )}
 
         {!refreshing && tickets.length === 0 ? (
-          <Paper sx={{ p: 6, textAlign: 'center' }}>
+          <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <Ticket size={64} color="#ccc" style={{ marginBottom: 16 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
               No tickets purchased yet
@@ -242,63 +258,73 @@ const UserDashboard: React.FC = () => {
             </Button>
           </Paper>
         ) : !refreshing && (
-          <Grid container spacing={3}>
+          <Grid container spacing={4}>
             {tickets.map((ticket) => (
-              <Grid item xs={12} md={6} lg={4} key={ticket.id}>
+              <Grid item xs={12} md={6} key={ticket.id}>
                 <Card sx={{ 
                   height: '100%', 
                   display: 'flex', 
                   flexDirection: 'column',
+                  borderRadius: 3,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  transition: 'transform 0.3s, box-shadow 0.3s',
                   '&:hover': {
-                    boxShadow: 4,
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.2s ease-in-out'
+                    transform: 'translateY(-5px)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.1)'
                   }
                 }}>
                   <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
                         {ticket.concert.title}
                       </Typography>
                       <Chip 
                         label={ticket.zone.name} 
                         color="primary" 
                         size="small"
-                        sx={{ fontWeight: 'bold' }}
+                        sx={{ fontWeight: 'medium' }}
                       />
                     </Box>
+                    <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                      {ticket.concert.arena.name}
+                    </Typography>
                     
+                    <Divider sx={{ my: 2 }} />
+
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <CalendarDays size={16} style={{ marginRight: 8, color: '#666' }} />
+                      <CalendarDays size={18} style={{ marginRight: 10, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
                         {formatDate(ticket.concert.date)} at {formatTime(ticket.concert.startTime)}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <MapPin size={16} style={{ marginRight: 8, color: '#666' }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <MapPin size={18} style={{ marginRight: 10, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {ticket.concert.arena.name}, {ticket.concert.arena.location}
+                        {ticket.concert.arena.location}
                       </Typography>
                     </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Ticket size={16} style={{ marginRight: 8, color: '#666' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {ticket.quantity} ticket{ticket.quantity > 1 ? 's' : ''}
-                      </Typography>
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Purchased: {formatPurchaseDate(ticket.purchaseDate)}
-                      </Typography>
-                      <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
-                        ${ticket.totalPrice.toFixed(2)}
-                      </Typography>
-                    </Box>
+                  </CardContent>
+                  <Divider />
+                  <CardContent>
+                    <Grid container justifyContent="space-between" alignItems="center">
+                      <Grid item>
+                        <Typography variant="body2" color="text.secondary">
+                          Purchased: {formatPurchaseDate(ticket.purchaseDate)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Ticket ID: {ticket.id}
+                        </Typography>
+                      </Grid>
+                      <Grid item>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          sx={{ textTransform: 'none' }}
+                        >
+                          View Ticket
+                        </Button>
+                      </Grid>
+                    </Grid>
                   </CardContent>
                 </Card>
               </Grid>
