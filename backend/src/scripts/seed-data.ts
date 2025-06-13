@@ -373,8 +373,15 @@ const seedConcerts = async (organizers: Organizer[], arenas: Arena[]): Promise<C
   for (let i = 0; i < 30; i++) {
     const organizer = faker.helpers.arrayElement(organizers);
     const arena = faker.helpers.arrayElement(arenas);
-    // Ensure concert date is in the future (at least 1 day from now)
-    const concertDate = faker.date.future({ years: 1 });
+    
+    // FIX: Ensure concert date is always at least one day in the future.
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // Set the date to tomorrow
+    const nextYear = new Date();
+    nextYear.setFullYear(today.getFullYear() + 1); // Set to one year from today
+    
+    const concertDate = faker.date.between({ from: tomorrow, to: nextYear });
     
     const concert = {
       concert_id: faker.string.uuid(),
@@ -491,7 +498,7 @@ const seedTickets = async (fans: Fan[], concerts: Concert[], concertPricings: Co
       ticket_id: faker.string.uuid(),
       fan_id: fan.user_id,
       concert_id: concert.concert_id,
-      arena_id: concert.arena_id,
+      arena_id: pricing.arena_id,
       zone_name: pricing.zone_name,
       purchase_date: new Date(),
       purchase_price: purchasePrice
