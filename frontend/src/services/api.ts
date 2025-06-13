@@ -90,23 +90,22 @@ export interface TicketValidationData {
 
 export interface UserTicket {
   id: string;
+  fanId: string;
+  concertId: string;
+  zone: string;
+  purchaseDate: string;
+  totalPrice: number;
   concert: {
     id: string;
     title: string;
     date: string;
-    startTime: string;
+    time: string;
     arena: {
+      id: string;
       name: string;
       location: string;
-    };
-  };
-  zone: {
-    id: string;
-    name: string;
-  };
-  quantity: number;
-  totalPrice: number;
-  purchaseDate: string;
+    }
+  }
 }
 
 export interface Ticket {
@@ -117,7 +116,12 @@ export interface Ticket {
   zone_name: string;
   purchase_date: string;
   purchase_price: number;
-  concert?: Concert; // Optional, for convenience
+  // Denormalized fields from backend
+  concert_name?: string;
+  concert_date?: string;
+  concert_time?: string;
+  arena_name?: string;
+  arena_location?: string;
 }
 
 export interface ReferralValidation {
@@ -206,6 +210,12 @@ export interface ConcertCreationData {
   }[];
 }
 
+export interface ApiResponse<T> {
+  success: boolean;
+  count: number;
+  tickets: T;
+}
+
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}, isPublic: boolean = false): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -288,32 +298,31 @@ class ApiService {
   }
 
   async getUserTickets(): Promise<UserTicket[]> {
-    const response = await this.request<{ success: boolean; count: number; tickets: any[] }>('/tickets/my-tickets');
+    const response = await this.request<ApiResponse<Ticket[]>>('/tickets/my-tickets');
     
     if (!response.success) {
       throw new Error('Failed to fetch tickets');
     }
 
-    // The backend now returns all necessary info, so we can map directly.
-    return response.tickets.map((ticket: any) => ({
+    // Map backend Ticket to frontend UserTicket
+    return response.tickets.map(ticket => ({
       id: ticket.ticket_id,
+      fanId: ticket.fan_id,
+      concertId: ticket.concert_id,
+      zone: ticket.zone_name,
+      purchaseDate: ticket.purchase_date,
+      totalPrice: ticket.purchase_price,
       concert: {
         id: ticket.concert_id,
-        title: ticket.concert_name || 'Concert',
-        date: ticket.concert_date,
-        startTime: ticket.concert_time,
+        title: ticket.concert_name || 'Unknown Concert',
+        date: ticket.concert_date || new Date().toISOString(),
+        time: ticket.concert_time || 'N/A',
         arena: {
+          id: ticket.arena_id,
           name: ticket.arena_name || 'Unknown Arena',
-          location: ticket.arena_location || 'Unknown Location'
+          location: ticket.arena_location || 'Unknown Location',
         }
-      },
-      zone: {
-        id: ticket.zone_name,
-        name: ticket.zone_name
-      },
-      quantity: 1, // Each ticket is treated as a single item
-      totalPrice: parseFloat(ticket.purchase_price) || 0,
-      purchaseDate: ticket.purchase_date
+      }
     }));
   }
 

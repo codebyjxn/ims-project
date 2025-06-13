@@ -18,9 +18,10 @@ import {
   IconButton,
   Skeleton
 } from '@mui/material';
-import { CalendarDays, MapPin, Ticket, Gift, LogOut, User, CreditCard, RefreshCw } from 'lucide-react';
+import { CalendarDays, MapPin, Ticket, Gift, LogOut, User, CreditCard, RefreshCw, Download } from 'lucide-react';
 import { api, UserTicket } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { downloadTicketPDF } from '../utils/pdfGenerator';
 
 const UserDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -270,74 +271,62 @@ const UserDashboard: React.FC = () => {
             </Button>
           </Paper>
         ) : !refreshing && (
-          <Grid container spacing={4}>
+          <Grid container spacing={3}>
             {tickets.map((ticket) => (
-              <Grid item xs={12} md={6} key={ticket.id}>
+              <Grid item xs={12} md={6} lg={4} key={ticket.id}>
                 <Card sx={{ 
-                  height: '100%', 
                   display: 'flex', 
-                  flexDirection: 'column',
+                  flexDirection: 'column', 
+                  height: '100%',
                   borderRadius: 3,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                  transition: 'transform 0.3s, box-shadow 0.3s',
+                  transition: 'transform 0.2s',
                   '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.1)'
+                    transform: 'translateY(-4px)'
                   }
                 }}>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        {ticket.concert.title}
-                      </Typography>
-                      <Chip 
-                        label={ticket.zone.name} 
-                        color="primary" 
-                        size="small"
-                        sx={{ fontWeight: 'medium' }}
-                      />
-                    </Box>
-                    <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                      {ticket.concert.arena.name}
+                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                    <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                      {ticket.concert.title}
                     </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', mb: 1 }}>
+                      <CalendarDays size={16} style={{ marginRight: 8 }} />
+                      <Typography variant="body2">
+                        {formatDate(ticket.concert.date)} at {formatTime(ticket.concert.time)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', mb: 2 }}>
+                      <MapPin size={16} style={{ marginRight: 8 }} />
+                      <Typography variant="body2">{ticket.concert.arena.name} - {ticket.concert.arena.location}</Typography>
+                    </Box>
                     
                     <Divider sx={{ my: 2 }} />
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <CalendarDays size={18} style={{ marginRight: 10, color: '#666' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(ticket.concert.date)} at {formatTime(ticket.concert.startTime)}
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Chip label={`Zone: ${ticket.zone}`} variant="outlined" />
+                      <Typography variant="h6" component="p" sx={{ fontWeight: 'bold' }}>
+                        ${(ticket.totalPrice || 0).toFixed(2)}
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <MapPin size={18} style={{ marginRight: 10, color: '#666' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {ticket.concert.arena.location}
-                      </Typography>
-                    </Box>
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                      Purchased on {formatPurchaseDate(ticket.purchaseDate)}
+                    </Typography>
+
                   </CardContent>
-                  <Divider />
-                  <CardContent>
-                    <Grid container justifyContent="space-between" alignItems="center">
-                      <Grid item>
-                      <Typography variant="body2" color="text.secondary">
-                        Purchased: {formatPurchaseDate(ticket.purchaseDate)}
-                      </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Ticket ID: {ticket.id}
-                      </Typography>
-                      </Grid>
-                      <Grid item>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          sx={{ textTransform: 'none' }}
-                        >
-                          View Ticket
-                        </Button>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
+                  <Box sx={{ p: 2, pt: 0, mt: 'auto' }}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={<Download size={16} />}
+                      onClick={() => downloadTicketPDF(ticket)}
+                      sx={{ 
+                        backgroundColor: '#1976d2', 
+                        '&:hover': { backgroundColor: '#1565c0' }
+                      }}
+                    >
+                      Download Ticket
+                    </Button>
+                  </Box>
                 </Card>
               </Grid>
             ))}

@@ -28,8 +28,8 @@ export class MongoUserRepository implements IUserRepository {
   async findById(userId: string): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IUser>('users');
-      const user = await collection.findOne({ _id: userId });
-      return user || null;
+      const user = await collection.findOne({ _id: userId as any });
+      return user;
     } catch (error) {
       console.error('Error in MongoUserRepository.findById:', error);
       return null;
@@ -90,11 +90,11 @@ export class MongoUserRepository implements IUserRepository {
     try {
       const collection = await mongoManager.getCollection<IUser>('users');
       const result = await collection.findOneAndUpdate(
-        { _id: userId },
+        { _id: userId as any },
         { $set: updates },
         { returnDocument: 'after' }
       );
-      return result.value || null;
+      return result;
     } catch (error) {
       console.error('Error in MongoUserRepository.update:', error);
       return null;
@@ -104,7 +104,7 @@ export class MongoUserRepository implements IUserRepository {
   async delete(userId: string): Promise<boolean> {
     try {
       const collection = await mongoManager.getCollection<IUser>('users');
-      const result = await collection.deleteOne({ _id: userId });
+      const result = await collection.deleteOne({ _id: userId as any });
       return result.deletedCount > 0;
     } catch (error) {
       console.error('Error in MongoUserRepository.delete:', error);
@@ -157,8 +157,8 @@ export class MongoTicketRepository implements ITicketRepository {
   async findById(ticketId: string): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
-      const ticket = await collection.findOne({ _id: ticketId });
-      return ticket || null;
+      const ticket = await collection.findOne({ _id: ticketId as any });
+      return ticket;
     } catch (error) {
       console.error('Error in MongoTicketRepository.findById:', error);
       return null;
@@ -168,10 +168,66 @@ export class MongoTicketRepository implements ITicketRepository {
   async findByFan(fanId: string): Promise<any[]> {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
-      const tickets = await collection
-        .find({ fan_id: fanId })
-        .sort({ concert_date: 1 })
-        .toArray();
+      const tickets = await collection.aggregate([
+        // Stage 1: Match tickets for the given fan
+        {
+          $match: { fan_id: fanId }
+        },
+        // Stage 2: Lookup concert details
+        {
+          $lookup: {
+            from: 'concerts',
+            localField: 'concert_id',
+            foreignField: '_id',
+            as: 'concert_details'
+          }
+        },
+        // Stage 3: Deconstruct the concert_details array
+        {
+          $unwind: {
+            path: '$concert_details',
+            preserveNullAndEmptyArrays: true // Keep ticket even if concert is not found
+          }
+        },
+        // Stage 4: Lookup arena details from the concert's arena_id
+        {
+          $lookup: {
+            from: 'arenas',
+            localField: 'concert_details.arena_id',
+            foreignField: '_id',
+            as: 'arena_details'
+          }
+        },
+        // Stage 5: Deconstruct the arena_details array
+        {
+          $unwind: {
+            path: '$arena_details',
+            preserveNullAndEmptyArrays: true // Keep ticket even if arena is not found
+          }
+        },
+        // Stage 6: Project to shape the final output
+        {
+          $project: {
+            _id: 1,
+            fan_id: 1,
+            concert_id: 1,
+            arena_id: '$concert_details.arena_id', // Use the one from concert
+            zone_name: 1,
+            purchase_date: 1,
+            purchase_price: 1,
+            concert_name: '$concert_details.description',
+            concert_date: '$concert_details.concert_date',
+            concert_time: '$concert_details.time',
+            arena_name: '$arena_details.arena_name',
+            arena_location: '$arena_details.arena_location'
+          }
+        },
+        // Stage 7: Sort by concert date
+        {
+          $sort: { concert_date: 1 }
+        }
+      ]).toArray();
+      
       return tickets;
     } catch (error) {
       console.error('Error in MongoTicketRepository.findByFan:', error);
@@ -182,9 +238,7 @@ export class MongoTicketRepository implements ITicketRepository {
   async findByConcert(concertId: string): Promise<any[]> {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
-      const tickets = await collection
-        .find({ concert_id: concertId })
-        .toArray();
+      const tickets = await collection.find({ concert_id: concertId }).toArray();
       return tickets;
     } catch (error) {
       console.error('Error in MongoTicketRepository.findByConcert:', error);
@@ -195,12 +249,7 @@ export class MongoTicketRepository implements ITicketRepository {
   async findByConcertAndZone(concertId: string, zoneName: string): Promise<any[]> {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
-      const tickets = await collection
-        .find({ 
-          concert_id: concertId, 
-          zone_name: zoneName 
-        })
-        .toArray();
+      const tickets = await collection.find({ concert_id: concertId, zone_name: zoneName }).toArray();
       return tickets;
     } catch (error) {
       console.error('Error in MongoTicketRepository.findByConcertAndZone:', error);
@@ -212,7 +261,7 @@ export class MongoTicketRepository implements ITicketRepository {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
       const result = await collection.insertOne(ticketData);
-      return await collection.findOne({ _id: result.insertedId });
+      return { ...ticketData, _id: result.insertedId };
     } catch (error) {
       console.error('Error in MongoTicketRepository.create:', error);
       throw error;
@@ -223,11 +272,11 @@ export class MongoTicketRepository implements ITicketRepository {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
       const result = await collection.insertMany(ticketsData);
-      const insertedIds = Object.keys(result.insertedIds).map(key => result.insertedIds[key]);
-      const tickets = await collection
-        .find({ _id: { $in: insertedIds } })
-        .toArray();
-      return tickets;
+      // Combine inserted ids with original data
+      return ticketsData.map((ticket, index) => ({
+        ...ticket,
+        _id: result.insertedIds[index]
+      }));
     } catch (error) {
       console.error('Error in MongoTicketRepository.createMultiple:', error);
       throw error;
@@ -237,7 +286,7 @@ export class MongoTicketRepository implements ITicketRepository {
   async delete(ticketId: string): Promise<boolean> {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
-      const result = await collection.deleteOne({ _id: ticketId });
+      const result = await collection.deleteOne({ _id: ticketId as any });
       return result.deletedCount > 0;
     } catch (error) {
       console.error('Error in MongoTicketRepository.delete:', error);
@@ -248,10 +297,7 @@ export class MongoTicketRepository implements ITicketRepository {
   async countByConcertAndZone(concertId: string, zoneName: string): Promise<number> {
     try {
       const collection = await mongoManager.getCollection<ITicket>('tickets');
-      const count = await collection.countDocuments({ 
-        concert_id: concertId, 
-        zone_name: zoneName 
-      });
+      const count = await collection.countDocuments({ concert_id: concertId, zone_name: zoneName });
       return count;
     } catch (error) {
       console.error('Error in MongoTicketRepository.countByConcertAndZone:', error);
@@ -265,8 +311,8 @@ export class MongoArtistRepository implements IArtistRepository {
   async findById(artistId: string): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IArtist>('artists');
-      const artist = await collection.findOne({ _id: artistId });
-      return artist || null;
+      const artist = await collection.findOne({ _id: artistId as any });
+      return artist;
     } catch (error) {
       console.error('Error in MongoArtistRepository.findById:', error);
       return null;
@@ -276,10 +322,7 @@ export class MongoArtistRepository implements IArtistRepository {
   async findAll(): Promise<any[]> {
     try {
       const collection = await mongoManager.getCollection<IArtist>('artists');
-      const artists = await collection
-        .find({})
-        .sort({ artist_name: 1 })
-        .toArray();
+      const artists = await collection.find({}).toArray();
       return artists;
     } catch (error) {
       console.error('Error in MongoArtistRepository.findAll:', error);
@@ -305,22 +348,22 @@ export class MongoArtistRepository implements IArtistRepository {
     try {
       const collection = await mongoManager.getCollection<IArtist>('artists');
       const result = await collection.insertOne(artistData);
-      return await collection.findOne({ _id: result.insertedId });
+      return { ...artistData, _id: result.insertedId };
     } catch (error) {
       console.error('Error in MongoArtistRepository.create:', error);
       throw error;
     }
   }
 
-  async update(artistId: string, updates: any): Promise<any | null> {
+  async update(artistId: string, updates: Partial<IArtist>): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IArtist>('artists');
       const result = await collection.findOneAndUpdate(
-        { _id: artistId },
+        { _id: artistId as any },
         { $set: updates },
         { returnDocument: 'after' }
       );
-      return result.value || null;
+      return result;
     } catch (error) {
       console.error('Error in MongoArtistRepository.update:', error);
       return null;
@@ -330,7 +373,7 @@ export class MongoArtistRepository implements IArtistRepository {
   async delete(artistId: string): Promise<boolean> {
     try {
       const collection = await mongoManager.getCollection<IArtist>('artists');
-      const result = await collection.deleteOne({ _id: artistId });
+      const result = await collection.deleteOne({ _id: artistId as any });
       return result.deletedCount > 0;
     } catch (error) {
       console.error('Error in MongoArtistRepository.delete:', error);
@@ -344,8 +387,8 @@ export class MongoArenaRepository implements IArenaRepository {
   async findById(arenaId: string): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IArena>('arenas');
-      const arena = await collection.findOne({ _id: arenaId });
-      return arena || null;
+      const arena = await collection.findOne({ _id: arenaId as any });
+      return arena;
     } catch (error) {
       console.error('Error in MongoArenaRepository.findById:', error);
       return null;
@@ -355,10 +398,7 @@ export class MongoArenaRepository implements IArenaRepository {
   async findAll(): Promise<any[]> {
     try {
       const collection = await mongoManager.getCollection<IArena>('arenas');
-      const arenas = await collection
-        .find({})
-        .sort({ arena_name: 1 })
-        .toArray();
+      const arenas = await collection.find({}).toArray();
       return arenas;
     } catch (error) {
       console.error('Error in MongoArenaRepository.findAll:', error);
@@ -395,22 +435,22 @@ export class MongoArenaRepository implements IArenaRepository {
     try {
       const collection = await mongoManager.getCollection<IArena>('arenas');
       const result = await collection.insertOne(arenaData);
-      return await collection.findOne({ _id: result.insertedId });
+      return { ...arenaData, _id: result.insertedId };
     } catch (error) {
       console.error('Error in MongoArenaRepository.create:', error);
       throw error;
     }
   }
 
-  async update(arenaId: string, updates: any): Promise<any | null> {
+  async update(arenaId: string, updates: Partial<IArena>): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IArena>('arenas');
       const result = await collection.findOneAndUpdate(
-        { _id: arenaId },
+        { _id: arenaId as any },
         { $set: updates },
         { returnDocument: 'after' }
       );
-      return result.value || null;
+      return result;
     } catch (error) {
       console.error('Error in MongoArenaRepository.update:', error);
       return null;
@@ -420,7 +460,7 @@ export class MongoArenaRepository implements IArenaRepository {
   async delete(arenaId: string): Promise<boolean> {
     try {
       const collection = await mongoManager.getCollection<IArena>('arenas');
-      const result = await collection.deleteOne({ _id: arenaId });
+      const result = await collection.deleteOne({ _id: arenaId as any });
       return result.deletedCount > 0;
     } catch (error) {
       console.error('Error in MongoArenaRepository.delete:', error);
@@ -434,8 +474,8 @@ export class MongoConcertRepository implements IConcertRepository {
   async findById(concertId: string): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IConcert>('concerts');
-      const concert = await collection.findOne({ _id: concertId });
-      return concert || null;
+      const concert = await collection.findOne({ _id: concertId as any });
+      return concert;
     } catch (error) {
       console.error('Error in MongoConcertRepository.findById:', error);
       return null;
@@ -445,10 +485,36 @@ export class MongoConcertRepository implements IConcertRepository {
   async findAll(): Promise<any[]> {
     try {
       const collection = await mongoManager.getCollection<IConcert>('concerts');
-      const concerts = await collection
-        .find({})
-        .sort({ concert_date: 1 })
-        .toArray();
+      const concerts = await collection.aggregate([
+        {
+          $lookup: {
+            from: 'arenas',
+            localField: 'arena_id',
+            foreignField: '_id',
+            as: 'arena'
+          }
+        },
+        {
+          $unwind: {
+            path: '$arena',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            concert_date: 1,
+            time: 1,
+            description: 1,
+            organizer_id: 1,
+            arena_id: 1,
+            artists: 1,
+            zone_pricing: 1,
+            arena_name: '$arena.arena_name',
+            arena_location: '$arena.arena_location'
+          }
+        }
+      ]).toArray();
       return concerts;
     } catch (error) {
       console.error('Error in MongoConcertRepository.findAll:', error);
@@ -513,22 +579,22 @@ export class MongoConcertRepository implements IConcertRepository {
     try {
       const collection = await mongoManager.getCollection<IConcert>('concerts');
       const result = await collection.insertOne(concertData);
-      return await collection.findOne({ _id: result.insertedId });
+      return { ...concertData, _id: result.insertedId };
     } catch (error) {
       console.error('Error in MongoConcertRepository.create:', error);
       throw error;
     }
   }
 
-  async update(concertId: string, updates: any): Promise<any | null> {
+  async update(concertId: string, updates: Partial<IConcert>): Promise<any | null> {
     try {
       const collection = await mongoManager.getCollection<IConcert>('concerts');
       const result = await collection.findOneAndUpdate(
-        { _id: concertId },
+        { _id: concertId as any },
         { $set: updates },
         { returnDocument: 'after' }
       );
-      return result.value || null;
+      return result;
     } catch (error) {
       console.error('Error in MongoConcertRepository.update:', error);
       return null;
@@ -538,7 +604,7 @@ export class MongoConcertRepository implements IConcertRepository {
   async delete(concertId: string): Promise<boolean> {
     try {
       const collection = await mongoManager.getCollection<IConcert>('concerts');
-      const result = await collection.deleteOne({ _id: concertId });
+      const result = await collection.deleteOne({ _id: concertId as any });
       return result.deletedCount > 0;
     } catch (error) {
       console.error('Error in MongoConcertRepository.delete:', error);

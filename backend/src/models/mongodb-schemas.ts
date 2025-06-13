@@ -82,6 +82,12 @@ export interface ITicket {
   purchase_price: number;
   concert_date: Date;
   fan_username: string;
+
+  // Optional denormalized fields from aggregations
+  concert_name?: string;
+  concert_time?: string;
+  arena_name?: string;
+  arena_location?: string;
 }
 
 // ========== NATIVE MONGODB CONNECTION ==========

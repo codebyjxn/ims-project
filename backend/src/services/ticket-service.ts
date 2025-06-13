@@ -152,10 +152,15 @@ export class TicketService {
       concert_id: ticket.concert_id,
       arena_id: ticket.arena_id,
       zone_name: ticket.zone_name,
-      purchase_date: ticket.purchase_date.toISOString(),
+      purchase_date: new Date(ticket.purchase_date).toISOString(),
       purchase_price: ticket.purchase_price,
+      // Denormalized fields from the aggregation/join
       fan_username: ticket.fan_username,
-      concert_date: ticket.concert_date?.toISOString()
+      concert_date: ticket.concert_date ? new Date(ticket.concert_date).toISOString() : undefined,
+      concert_name: ticket.concert_name,
+      concert_time: ticket.concert_time,
+      arena_name: ticket.arena_name,
+      arena_location: ticket.arena_location,
     }));
   }
 

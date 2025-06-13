@@ -94,6 +94,10 @@ export interface TicketDTO {
   // Additional denormalized fields for convenience
   fan_username?: string;
   concert_date?: string;
+  concert_name?: string;
+  concert_time?: string;
+  arena_name?: string;
+  arena_location?: string;
 }
 
 // ========== TICKET PURCHASE DTOs ==========
