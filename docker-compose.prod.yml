@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: ims-backend-prod
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - POSTGRES_HOST=ims-postgres-prod
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=concert_booking
+      - MONGODB_URI=mongodb://ims-mongodb-prod:27017/concert_booking
+      - MIGRATED=false
+      - MIGRATION_STATUS_FILE=./migration-status.json # or 'mongodb' to switch
+      - JWT_SECRET=your-production-secret
+      - JWT_EXPIRES_IN=24h
+    depends_on:
+      - postgres
+      - mongodb
+    networks:
+      - app-network
+
+  frontend:
+    container_name: ims-frontend-prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    volumes:
+      
+      - ./certs/selfsigned.crt:/etc/ssl/certs/selfsigned.crt:ro
+      - ./certs/selfsigned.key:/etc/ssl/private/selfsigned.key:ro
+    ports:
+      - "443:443"
+
+  postgres:
+    container_name: ims-postgres-prod
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=concert_booking
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/db/init:/docker-entrypoint-initdb.d
+
+    networks:
+      - app-network
+
+  mongodb:
+    container_name: ims-mongodb-prod
+    image: mongo:7
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  mongodb_data:
+
+networks:
+  app-network:
+    driver: bridge 

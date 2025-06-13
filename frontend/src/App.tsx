@@ -12,6 +12,7 @@ import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
 import AnalyticsReport from './pages/AnalyticsReport';
 import './App.css';
+import './components/Login.css';
 
 // Protected route wrapper for any authenticated user
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {

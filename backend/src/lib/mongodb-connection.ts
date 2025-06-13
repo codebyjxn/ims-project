@@ -2,7 +2,7 @@
 // ========== MONGODB CONNECTION MANAGER ==========
 // Robust connection management for MongoDB
 
-import { MongoClient, Db, Collection } from 'mongodb';
+import { MongoClient, Db, Collection, Document } from 'mongodb';
 
 class MongoDBConnectionManager {
   private static instance: MongoDBConnectionManager;
@@ -74,7 +74,7 @@ class MongoDBConnectionManager {
     return this.db;
   }
 
-  public async getCollection<T = any>(collectionName: string): Promise<Collection<T>> {
+  public async getCollection<T extends Document = Document>(collectionName: string): Promise<Collection<T>> {
     const database = await this.getDatabase();
     return database.collection<T>(collectionName);
   }

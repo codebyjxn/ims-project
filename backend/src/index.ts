@@ -38,52 +38,8 @@ app.use('/api/organizer', organizerRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    const health = {
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      currentDatabase: migrationStatus.getDatabaseType(),
-      migrated: migrationStatus.isMigrated(),
-      services: {
-        postgres: 'disconnected',
-        mongodb: 'disconnected'
-      }
-    };
-
-    // Test PostgreSQL connection
-    try {
-      await getPool().query('SELECT 1');
-      health.services.postgres = 'connected';
-    } catch (error) {
-      health.services.postgres = 'disconnected';
-    }
-
-    // Test MongoDB connection using the robust mongoManager
-    try {
-      const db = await mongoManager.getDatabase();
-      await db.admin().ping();
-      health.services.mongodb = 'connected';
-    } catch (error) {
-      console.warn('MongoDB health check failed:', error instanceof Error ? error.message : 'Unknown error');
-      health.services.mongodb = 'disconnected';
-    }
-
-    // Set overall status
-    if (health.services.postgres === 'connected' && health.services.mongodb === 'connected') {
-      health.status = 'OK';
-      res.status(200).json(health);
-    } else {
-      health.status = 'DEGRADED';
-      res.status(503).json(health);
-    }
-  } catch (error) {
-    res.status(500).json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      error: 'Health check failed'
-    });
-  }
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
 });
 
 // API routes
@@ -99,7 +55,7 @@ app.get('/api', (req, res) => {
       },
       admin: {
         seed: 'POST /api/admin/seed',
-        migrate: 'POST /api/admin/migrate',
+        migrate: 'POST /api/admin/migrate', 
         health: 'GET /api/admin/health'
       },
       tickets: {
