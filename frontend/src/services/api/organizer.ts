@@ -30,7 +30,8 @@ export interface OrganizerConcert {
       capacity: number;
     };
     artists: {
-      name: string;
+      artist_id: string;
+      artist_name: string;
       genre: string;
     }[];
     ticketsSold: number;
@@ -59,29 +60,66 @@ export interface ConcertCreationData {
       price: number;
     }[];
     artists: string[];
-    collaborations: {
-      artist1: string;
-      artist2: string;
-    }[];
 }
   
 class OrganizerService {
     async getOrganizerConcerts(organizerId?: string): Promise<OrganizerConcert[]> {
         const id = organizerId || this.getUserId();
-        return request<{ concerts: OrganizerConcert[] }>(`/organizer/concerts/${id}`).then(data => data.concerts);
+        const concerts = await request<any[]>(`/organizer/concerts/${id}`);
+        return concerts.map(concert => ({
+          concert_id: concert.concert_id,
+          title: concert.title,
+          date: concert.date,
+          time: concert.time,
+          arena: {
+            name: concert.arena?.name || concert.arena_name,
+            location: concert.arena?.location || concert.arena_location,
+            capacity: concert.arena?.capacity || concert.arena_capacity,
+          },
+          artists: (concert.artists || []).map((artist: any) => ({
+            artist_id: artist.artist_id || artist._id || '',
+            artist_name: artist.artist_name || artist.name || '',
+            genre: artist.genre || '',
+          })),
+          ticketsSold: concert.tickets_sold ?? concert.ticketsSold ?? 0,
+          totalRevenue: concert.total_revenue ?? concert.totalRevenue ?? 0,
+          status: concert.status,
+        }));
     }
     
     async getOrganizerStats(organizerId?: string): Promise<OrganizerStats> {
         const id = organizerId || this.getUserId();
-        return request<OrganizerStats>(`/organizer/stats/${id}`);
+        const stats = await request<any>(`/organizer/stats/${id}`);
+        return {
+          totalConcerts: stats.totalConcerts ?? stats.total_concerts ?? 0,
+          upcomingConcerts: stats.upcomingConcerts ?? stats.upcoming_concerts ?? 0,
+          totalTicketsSold: stats.totalTicketsSold ?? stats.total_tickets_sold ?? 0,
+          totalRevenue: stats.totalRevenue ?? stats.total_revenue ?? 0,
+          averageAttendance: stats.averageAttendance ?? stats.average_attendance ?? 0,
+        };
     }
 
     async getArenas(): Promise<Arena[]> {
-        return request<{ arenas: Arena[] }>('/organizer/arenas').then(data => data.arenas);
+        const arenas = await request<any[]>(`/organizer/arenas`);
+        return arenas.map((arena: any) => ({
+          arena_id: arena.arena_id,
+          arena_name: arena.arena_name,
+          arena_location: arena.arena_location,
+          total_capacity: arena.total_capacity,
+          zones: (arena.zones || []).map((zone: any) => ({
+            zone_name: zone.zone_name,
+            capacity_per_zone: zone.capacity_per_zone,
+          })),
+        }));
     }
     
     async getArtists(): Promise<Artist[]> {
-        return request<{ artists: Artist[] }>('/organizer/artists').then(data => data.artists);
+        const artists = await request<any[]>(`/organizer/artists`);
+        return artists.map((artist: any) => ({
+          artist_id: artist.artist_id || artist._id || '',
+          artist_name: artist.artist_name || artist.name || '',
+          genre: artist.genre || '',
+        }));
     }
     
     async createConcert(data: ConcertCreationData): Promise<{ message: string; concertId: string }> {
@@ -112,6 +150,10 @@ class OrganizerService {
         return request<any>(`/organizer/concerts/${concertId}/analytics`);
     }
 
+    async getArenasAnalytics(): Promise<any[]> {
+        return request<any[]>(`/organizer/arenas/analytics`);
+    }
+
     private getUserId(): string | null {
         // Implementation depends on how user info is stored
         const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -120,4 +162,4 @@ class OrganizerService {
 }
 
 const organizerService = new OrganizerService();
-export default organizerService; 
+export default organizerService;

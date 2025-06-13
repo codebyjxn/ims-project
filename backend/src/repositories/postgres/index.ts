@@ -11,6 +11,7 @@ import {
   ITicketRepository,
   IRepositoryFactory 
 } from '../interfaces';
+import { PostgresOrganizerRepository } from './organizer';
 
 export class PostgresUserRepository implements IUserRepository {
   private pool: Pool;
@@ -689,6 +690,7 @@ export class PostgresRepositoryFactory implements IRepositoryFactory {
   private arenaRepository: PostgresArenaRepository;
   private concertRepository: PostgresConcertRepository;
   private ticketRepository: PostgresTicketRepository;
+  private organizerRepository: PostgresOrganizerRepository;
 
   constructor() {
     this.userRepository = new PostgresUserRepository();
@@ -696,6 +698,7 @@ export class PostgresRepositoryFactory implements IRepositoryFactory {
     this.arenaRepository = new PostgresArenaRepository();
     this.concertRepository = new PostgresConcertRepository();
     this.ticketRepository = new PostgresTicketRepository();
+    this.organizerRepository = new PostgresOrganizerRepository();
   }
 
   getUserRepository(): IUserRepository {
@@ -716,5 +719,9 @@ export class PostgresRepositoryFactory implements IRepositoryFactory {
 
   getTicketRepository(): ITicketRepository {
     return this.ticketRepository;
+  }
+
+  getOrganizerRepository(): PostgresOrganizerRepository {
+    return this.organizerRepository;
   }
 } 

@@ -22,6 +22,8 @@ import {
   ITicketRepository,
   IRepositoryFactory 
 } from '../interfaces';
+import { MongoOrganizerRepository } from './organizer';
+import { ObjectId } from 'mongodb';
 
 export class MongoUserRepository implements IUserRepository {
 
@@ -472,14 +474,21 @@ export class MongoArenaRepository implements IArenaRepository {
 export class MongoConcertRepository implements IConcertRepository {
 
   async findById(concertId: string): Promise<any | null> {
-    try {
-      const collection = await mongoManager.getCollection<IConcert>('concerts');
-      const concert = await collection.findOne({ _id: concertId as any });
-      return concert;
-    } catch (error) {
-      console.error('Error in MongoConcertRepository.findById:', error);
-      return null;
+    const collection = await mongoManager.getCollection<IConcert>('concerts');
+    let concert = null;
+    // Try as ObjectId if possible
+    if (/^[a-fA-F0-9]{24}$/.test(concertId)) {
+      try {
+        concert = await collection.findOne({ _id: new ObjectId(concertId) });
+      } catch (e) {
+        // Not a valid ObjectId, skip
+      }
     }
+    // Fallback to string
+    if (!concert) {
+      concert = await collection.findOne({ _id: concertId });
+    }
+    return concert;
   }
 
   async findAll(): Promise<any[]> {
@@ -503,6 +512,7 @@ export class MongoConcertRepository implements IConcertRepository {
         {
           $project: {
             _id: 1,
+            concert_id: { $toString: '$_id' },
             concert_date: 1,
             time: 1,
             description: 1,
@@ -577,9 +587,53 @@ export class MongoConcertRepository implements IConcertRepository {
 
   async create(concertData: any): Promise<any> {
     try {
+      // Prepare artists array as objects
+      let artists: any[] = [];
+      if (Array.isArray(concertData.artists) && concertData.artists.length > 0) {
+        if (typeof concertData.artists[0] === 'string') {
+          // Array of IDs, fetch full artist objects
+          const artistIds = concertData.artists;
+          const artistsCollection = await mongoManager.getCollection<IArtist>('artists');
+          const artistDocs = await artistsCollection.find({ _id: { $in: artistIds } }).toArray();
+          artists = artistDocs.map(artist => ({
+            artist_id: artist._id,
+            artist_name: artist.artist_name,
+            genre: artist.genre
+          }));
+        } else if (typeof concertData.artists[0] === 'object') {
+          // Already objects, but ensure correct shape
+          artists = concertData.artists.map((artist: any) => ({
+            artist_id: artist.artist_id || artist._id,
+            artist_name: artist.artist_name,
+            genre: artist.genre
+          }));
+        }
+      }
+
+      // Prepare zone_pricing array as objects with correct types
+      let zone_pricing: any[] = [];
+      if (Array.isArray(concertData.zone_pricing)) {
+        zone_pricing = concertData.zone_pricing.map((zp: any) => ({
+          zone_name: zp.zone_name,
+          price: typeof zp.price === 'string' ? parseFloat(zp.price) : zp.price
+        }));
+      }
+
+      // Build the concert document to insert
+      const concertDoc: IConcert = {
+        _id: concertData._id, // Should be a string (UUID) or ObjectId
+        concert_date: new Date(concertData.concert_date),
+        time: concertData.time,
+        description: concertData.description,
+        organizer_id: concertData.organizer_id,
+        arena_id: concertData.arena_id,
+        artists,
+        zone_pricing
+      };
+
       const collection = await mongoManager.getCollection<IConcert>('concerts');
-      const result = await collection.insertOne(concertData);
-      return { ...concertData, _id: result.insertedId };
+      const result = await collection.insertOne(concertDoc);
+      return { ...concertDoc, _id: result.insertedId };
     } catch (error) {
       console.error('Error in MongoConcertRepository.create:', error);
       throw error;
@@ -664,6 +718,7 @@ export class MongoRepositoryFactory implements IRepositoryFactory {
   private arenaRepository: MongoArenaRepository;
   private concertRepository: MongoConcertRepository;
   private ticketRepository: MongoTicketRepository;
+  private organizerRepository: MongoOrganizerRepository;
 
   constructor() {
     this.userRepository = new MongoUserRepository();
@@ -671,6 +726,7 @@ export class MongoRepositoryFactory implements IRepositoryFactory {
     this.arenaRepository = new MongoArenaRepository();
     this.concertRepository = new MongoConcertRepository();
     this.ticketRepository = new MongoTicketRepository();
+    this.organizerRepository = new MongoOrganizerRepository();
   }
 
   getUserRepository(): IUserRepository {
@@ -691,5 +747,9 @@ export class MongoRepositoryFactory implements IRepositoryFactory {
 
   getTicketRepository(): ITicketRepository {
     return this.ticketRepository;
+  }
+
+  getOrganizerRepository(): MongoOrganizerRepository {
+    return this.organizerRepository;
   }
 } 

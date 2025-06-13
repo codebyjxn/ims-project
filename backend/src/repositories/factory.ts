@@ -4,6 +4,7 @@
 
 import { migrationStatus } from '../services/migration-status';
 import { IRepositoryFactory } from './interfaces';
+import { IOrganizerRepository } from './interfaces';
 import { PostgresRepositoryFactory } from './postgres';
 import { MongoRepositoryFactory } from './mongodb';
 
@@ -14,19 +15,35 @@ export class RepositoryFactory {
   /**
    * Get the appropriate repository factory based on migration status
    */
-  public static getFactory(): IRepositoryFactory {
+  public static getFactory(): IRepositoryFactory & { getOrganizerRepository: () => IOrganizerRepository } {
     const dbType = migrationStatus.getDatabaseType();
     
     if (dbType === 'mongodb') {
       if (!this.mongoFactory) {
         this.mongoFactory = new MongoRepositoryFactory();
       }
-      return this.mongoFactory;
+      const factory = this.mongoFactory;
+      return {
+        getUserRepository: () => factory.getUserRepository(),
+        getArtistRepository: () => factory.getArtistRepository(),
+        getArenaRepository: () => factory.getArenaRepository(),
+        getConcertRepository: () => factory.getConcertRepository(),
+        getTicketRepository: () => factory.getTicketRepository(),
+        getOrganizerRepository: () => factory.getOrganizerRepository(),
+      };
     } else {
       if (!this.postgresFactory) {
         this.postgresFactory = new PostgresRepositoryFactory();
       }
-      return this.postgresFactory;
+      const factory = this.postgresFactory;
+      return {
+        getUserRepository: () => factory.getUserRepository(),
+        getArtistRepository: () => factory.getArtistRepository(),
+        getArenaRepository: () => factory.getArenaRepository(),
+        getConcertRepository: () => factory.getConcertRepository(),
+        getTicketRepository: () => factory.getTicketRepository(),
+        getOrganizerRepository: () => factory.getOrganizerRepository(),
+      };
     }
   }
 

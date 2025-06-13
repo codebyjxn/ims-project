@@ -58,6 +58,15 @@ export interface ITicketRepository {
   countByConcertAndZone(concertId: string, zoneName: string): Promise<number>;
 }
 
+export interface IOrganizerRepository {
+  findConcertsByOrganizer(organizerId: string): Promise<any[]>;
+  getStats(organizerId: string): Promise<any>;
+  getArenas(): Promise<any[]>;
+  getArtists(): Promise<any[]>;
+  createConcert(concertData: any): Promise<any>;
+  getArenasAnalytics(organizerId: string): Promise<any[]>;
+}
+
 export interface IRepositoryFactory {
   getUserRepository(): IUserRepository;
   getArtistRepository(): IArtistRepository;

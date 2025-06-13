@@ -22,6 +22,4 @@ RUN npm ci --only=production
 ENV NODE_ENV=production
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
-COPY wait-for-it.sh /app/wait-for-it.sh
-RUN chmod +x /app/wait-for-it.sh
 ENTRYPOINT ["/app/entrypoint.sh"]

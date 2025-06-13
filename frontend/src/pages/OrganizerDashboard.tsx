@@ -304,7 +304,7 @@ const OrganizerDashboard: React.FC = () => {
                         {concert.artists.map((artist, index) => (
                           <Chip
                             key={index}
-                            label={artist.name}
+                            label={artist.artist_name}
                             size="small"
                             variant="outlined"
                           />

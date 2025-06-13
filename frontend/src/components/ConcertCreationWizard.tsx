@@ -74,7 +74,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   const [selectedArena, setSelectedArena] = useState<Arena | null>(null);
   const [zoneConfigurations, setZoneConfigurations] = useState<ZoneConfiguration[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
-  const [performances, setPerformances] = useState<PerformanceConfiguration[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -115,7 +114,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
     setSelectedArena(null);
     setZoneConfigurations([]);
     setSelectedArtists([]);
-    setPerformances([]);
     setError(null);
   };
 
@@ -148,28 +146,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
     });
   };
 
-  const addPerformance = () => {
-    if (selectedArtists.length > 0) {
-      setPerformances(prev => [
-        ...prev,
-        {
-          artistId: selectedArtists[0],
-          type: 'solo',
-        },
-      ]);
-    }
-  };
-
-  const updatePerformance = (index: number, updates: Partial<PerformanceConfiguration>) => {
-    setPerformances(prev =>
-      prev.map((perf, i) => (i === index ? { ...perf, ...updates } : perf))
-    );
-  };
-
-  const removePerformance = (index: number) => {
-    setPerformances(prev => prev.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -184,12 +160,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
         arenaId: selectedArena?.arena_id || '',
         zones: zoneConfigurations,
         artists: selectedArtists,
-        collaborations: performances
-          .filter(p => p.type === 'collaboration' && p.collaboratorId)
-          .map(p => ({
-            artist1: p.artistId,
-            artist2: p.collaboratorId!,
-          })),
       };
 
       await organizerService.createConcert(concertData);
@@ -214,7 +184,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
       case 3:
         return selectedArtists.length > 0;
       case 4:
-        return performances.length > 0;
+        return true;
       case 5:
         return true;
       default:
@@ -379,7 +349,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Performance Configuration</Typography>
               <Button
-                onClick={addPerformance}
+                onClick={() => {}}
                 disabled={selectedArtists.length === 0}
                 variant="outlined"
                 sx={{ textTransform: 'none' }}
@@ -388,73 +358,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
               </Button>
             </Box>
             <List>
-              {performances.map((performance, index) => (
-                <ListItem key={index} sx={{ border: 1, borderColor: 'divider', borderRadius: 2, mb: 2 }}>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={4}>
-                      <FormControl fullWidth>
-                        <InputLabel>Artist</InputLabel>
-                        <Select
-                          value={performance.artistId}
-                          onChange={(e) => updatePerformance(index, { artistId: e.target.value })}
-                        >
-                          {selectedArtists.map((artistId) => {
-                            const artist = artists.find(a => a.artist_id === artistId);
-                            return (
-                              <MenuItem key={artistId} value={artistId}>
-                                {artist?.artist_name}
-                              </MenuItem>
-                            );
-                          })}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid item xs={3}>
-                      <FormControl fullWidth>
-                        <InputLabel>Type</InputLabel>
-                        <Select
-                          value={performance.type}
-                          onChange={(e) => updatePerformance(index, { type: e.target.value as 'solo' | 'collaboration' })}
-                        >
-                          <MenuItem value="solo">Solo</MenuItem>
-                          <MenuItem value="collaboration">Collaboration</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    {performance.type === 'collaboration' && (
-                      <Grid item xs={4}>
-                        <FormControl fullWidth>
-                          <InputLabel>Collaborator</InputLabel>
-                          <Select
-                            value={performance.collaboratorId || ''}
-                            onChange={(e) => updatePerformance(index, { collaboratorId: e.target.value })}
-                          >
-                            {selectedArtists
-                              .filter(id => id !== performance.artistId)
-                              .map((artistId) => {
-                                const artist = artists.find(a => a.artist_id === artistId);
-                                return (
-                                  <MenuItem key={artistId} value={artistId}>
-                                    {artist?.artist_name}
-                                  </MenuItem>
-                                );
-                              })}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                    )}
-                    <Grid item xs={1}>
-                      <Button 
-                        onClick={() => removePerformance(index)}
-                        color="error"
-                        sx={{ minWidth: 'auto' }}
-                      >
-                        ✕
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </ListItem>
-              ))}
+              {/* Performance configuration list items would be populated here */}
             </List>
           </Box>
         );
@@ -507,25 +411,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                           label={artist?.artist_name}
                           sx={{ mr: 1, mt: 1 }}
                         />
-                      );
-                    })}
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ mt: 2 }}>
-                      Performances
-                    </Typography>
-                    {performances.map((performance, index) => {
-                      const artist = artists.find(a => a.artist_id === performance.artistId);
-                      const collaborator = performance.collaboratorId
-                        ? artists.find(a => a.artist_id === performance.collaboratorId)
-                        : null;
-                      return (
-                        <Typography key={index} sx={{ mt: 1 }}>
-                          {artist?.artist_name}
-                          {performance.type === 'collaboration' && collaborator && (
-                            <> (with {collaborator.artist_name})</>
-                          )}
-                        </Typography>
                       );
                     })}
                   </Grid>

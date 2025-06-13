@@ -1,4 +1,4 @@
-import { MongoClient, Db, Collection } from 'mongodb';
+import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
 import { mongoManager } from '../lib/mongodb-connection'; // Use the robust singleton connection manager
 
 // ========== NATIVE MONGODB INTERFACES ==========
@@ -54,7 +54,7 @@ export interface IArena {
 
 // Concerts Collection Interface
 export interface IConcert {
-  _id: string; // concert_id from SQL
+  _id: string | ObjectId; // concert_id from SQL or ObjectId from MongoDB
   concert_date: Date;
   time: string;
   description: string;

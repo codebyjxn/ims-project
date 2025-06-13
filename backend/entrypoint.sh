@@ -2,7 +2,12 @@
 set -e
 
 # Wait for Postgres to be ready
-/app/wait-for-it.sh ims-postgres-prod:5432 --timeout=60 --strict -- echo "Postgres is up"
+echo "[Entrypoint] Waiting for Postgres to be ready..."
+until nc -z ims-postgres-prod 5432; do
+  echo "Waiting for Postgres at ims-postgres-prod:5432..."
+  sleep 2
+done
+echo "Postgres is up"
 
 # Run the admin creation script
 echo "[Entrypoint] Creating admin user if needed..."

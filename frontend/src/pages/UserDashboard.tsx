@@ -250,8 +250,8 @@ const UserDashboard: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Your purchased tickets will appear here.
             </Typography>
-            <Button
-              variant="contained"
+            <Button 
+              variant="contained" 
               onClick={handleBrowseConcerts}
             >
               Browse Concerts
@@ -263,15 +263,15 @@ const UserDashboard: React.FC = () => {
               <Grid item xs={12} md={6} key={ticket.ticket_id}>
                 <Card 
                   sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    height: '100%',
-                    borderRadius: 3,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                    transition: 'transform 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-4px)'
-                    }
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  height: '100%',
+                  borderRadius: 3,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)'
+                  }
                   }}
                 >
                   <CardContent sx={{ flexGrow: 1, p: 3 }}>
@@ -298,9 +298,9 @@ const UserDashboard: React.FC = () => {
                     </Box>
                   </CardContent>
                   <CardContent sx={{ pt: 0 }}>
-                    <Button 
-                      fullWidth 
-                      variant="contained" 
+                    <Button
+                      fullWidth
+                      variant="contained"
                       color="primary"
                       startIcon={<Download size={16}/>}
                       onClick={() => downloadTicketPDF(ticket)}

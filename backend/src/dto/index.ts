@@ -127,6 +127,31 @@ export interface ReferralValidationResult {
   error?: string;
 }
 
+// ========== ORGANIZER DTOs ========== 
+export interface OrganizerConcertDTO {
+  concert_id: string;
+  title: string;
+  date: string;
+  time: string;
+  arena: {
+    name: string;
+    location: string;
+    capacity: number;
+  };
+  tickets_sold: number;
+  total_revenue: number;
+  status: string;
+  artists: ArtistDTO[];
+}
+
+export interface OrganizerStatsDTO {
+  totalConcerts: number;
+  upcomingConcerts: number;
+  totalTicketsSold: number;
+  totalRevenue: number;
+  averageAttendance: number;
+}
+
 // ========== ABSTRACT SERVICE INTERFACES ==========
 // These ensure both PostgreSQL and MongoDB services implement the same methods
 
