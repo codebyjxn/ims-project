@@ -109,10 +109,27 @@ export interface UserTicket {
   purchaseDate: string;
 }
 
+export interface Ticket {
+  ticket_id: string;
+  fan_id: string;
+  concert_id: string;
+  arena_id: string;
+  zone_name: string;
+  purchase_date: string;
+  purchase_price: number;
+  concert?: Concert; // Optional, for convenience
+}
+
 export interface ReferralValidation {
-  isValid: boolean;
+  valid: boolean;
+  message?: string;
+  error?: string;
   discount?: number;
-  message: string;
+  referrer?: {
+    id: string;
+    username: string;
+    name: string;
+  };
 }
 
 // Organizer-specific interfaces
@@ -277,67 +294,40 @@ class ApiService {
       throw new Error('Failed to fetch tickets');
     }
 
-    // Map backend TicketDTO format to frontend UserTicket format
-    const tickets = await Promise.all(
-      response.tickets.map(async (ticket: any) => {
-        try {
-          // Get concert details for each ticket
-          const concert = await this.getConcertById(ticket.concert_id);
-          
-          return {
-            id: ticket.ticket_id,
-            concert: {
-              id: ticket.concert_id,
-              title: concert.concert_name || 'Concert',
-              date: concert.concert_date,
-              startTime: concert.time,
-              arena: {
-                name: concert.arena?.arena_name || 'Unknown Arena',
-                location: concert.arena?.arena_location || 'Unknown Location'
-              }
-            },
-            zone: {
-              id: ticket.zone_name,
-              name: ticket.zone_name
-            },
-            quantity: 1, // Tickets are individual entries
-            totalPrice: parseFloat(ticket.price) || 0,
-            purchaseDate: ticket.purchase_date
-          };
-        } catch (error) {
-          console.error('Error mapping ticket:', error);
-          // Return a basic ticket structure if concert fetch fails
-          return {
-            id: ticket.ticket_id,
-            concert: {
-              id: ticket.concert_id,
-              title: 'Concert Details Unavailable',
-              date: ticket.concert_date || new Date().toISOString(),
-              startTime: '20:00',
-              arena: {
-                name: 'Unknown Arena',
-                location: 'Unknown Location'
-              }
-            },
-            zone: {
-              id: ticket.zone_name,
-              name: ticket.zone_name
-            },
-            quantity: 1,
-            totalPrice: parseFloat(ticket.price) || 0,
-            purchaseDate: ticket.purchase_date
-          };
+    // The backend now returns all necessary info, so we can map directly.
+    return response.tickets.map((ticket: any) => ({
+      id: ticket.ticket_id,
+      concert: {
+        id: ticket.concert_id,
+        title: ticket.concert_name || 'Concert',
+        date: ticket.concert_date,
+        startTime: ticket.concert_time,
+        arena: {
+          name: ticket.arena_name || 'Unknown Arena',
+          location: ticket.arena_location || 'Unknown Location'
         }
-      })
-    );
-
-    return tickets;
+      },
+      zone: {
+        id: ticket.zone_name,
+        name: ticket.zone_name
+      },
+      quantity: 1, // Each ticket is treated as a single item
+      totalPrice: parseFloat(ticket.purchase_price) || 0,
+      purchaseDate: ticket.purchase_date
+    }));
   }
 
   async validateReferralCode(code: string): Promise<ReferralValidation> {
     return this.request<ReferralValidation>(`/referrals/validate`, {
       method: 'POST',
       body: JSON.stringify({ referralCode: code }),
+    });
+  }
+
+  async applyReferralCode(code: string, fanId: string): Promise<any> {
+    return this.request<any>(`/referrals/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ referralCode: code, fanId }),
     });
   }
 

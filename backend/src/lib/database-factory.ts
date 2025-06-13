@@ -91,7 +91,7 @@ class PostgreSQLAdapter implements DatabaseAdapter {
   async getUserById(id: string): Promise<DatabaseResult> {
     const result = await this.pool.query(`
       SELECT u.*, 
-             f.username, f.preferred_genre, f.phone_number, f.referral_code, f.referral_points,
+             f.username, f.preferred_genre, f.phone_number, f.referral_code, f.referral_points, f.referral_code_used, f.referred_by,
              o.organization_name, o.contact_info
       FROM users u
       LEFT JOIN fans f ON u.user_id = f.user_id

@@ -90,8 +90,7 @@ export interface TicketDTO {
   arena_id: string;
   zone_name: string;
   purchase_date: string; // ISO string format
-  referral_code_used: boolean;
-  price: number;
+  purchase_price: number;
   // Additional denormalized fields for convenience
   fan_username?: string;
   concert_date?: string;

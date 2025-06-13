@@ -23,7 +23,7 @@ import {
   Card
 } from '@mui/material';
 import { CalendarDays, MapPin, Users, Gift, CheckCircle } from 'lucide-react';
-import { api, Concert } from '../services/api';
+import { api, Concert, ReferralValidation } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Navigation from '../components/Navigation';
 
@@ -35,16 +35,6 @@ interface TicketPurchaseData {
   fanId: string;
   paymentMethod: string;
   referralCode?: string;
-}
-
-interface ReferralValidation {
-  isValid: boolean;
-  discount?: number;
-  message: string;
-  referrer?: {
-    user_id: string;
-    email: string;
-  };
 }
 
 const ConcertDetailPage: React.FC = () => {
@@ -119,10 +109,10 @@ const ConcertDetailPage: React.FC = () => {
       setValidatingReferral(true);
       const validation = await api.validateReferralCode(referralCode.trim());
       setReferralValidation(validation);
-    } catch (err) {
+    } catch (err: any) {
       setReferralValidation({
-        isValid: false,
-        message: err instanceof Error ? err.message : 'Failed to validate referral code'
+        valid: false,
+        message: err.response?.data?.error || err.message || 'Failed to validate referral code'
       });
     } finally {
       setValidatingReferral(false);
@@ -131,12 +121,11 @@ const ConcertDetailPage: React.FC = () => {
 
   const calculateTotalPrice = (): number => {
     if (!concert || !selectedZone) return 0;
-
-    const zone = concert.arena?.zones?.find((z: any) => z.zone_name === selectedZone);
+    const zone = concert.zone_pricing?.find((z: any) => z.zone_name === selectedZone);
     if (!zone) return 0;
 
     const basePrice = zone.price * quantity;
-    const discount = referralValidation?.isValid ? (referralValidation.discount || 0) : 0;
+    const discount = referralValidation?.valid ? (referralValidation.discount || 0) : 0;
     return basePrice * (1 - discount / 100);
   };
 
@@ -152,7 +141,7 @@ const ConcertDetailPage: React.FC = () => {
       quantity,
       fanId: fanId,
       paymentMethod: "credit_card", // Required by the API
-      referralCode: referralValidation?.isValid ? referralCode.trim() : undefined
+      referralCode: referralValidation?.valid ? referralCode.trim() : undefined
     };
 
     try {
@@ -526,26 +515,39 @@ const ConcertDetailPage: React.FC = () => {
                   <TextField
                     fullWidth
                     label="Referral Code (Optional)"
+                    variant="outlined"
                     value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value)}
-                    onBlur={validateReferralCode}
-                    disabled={purchasing}
+                    onChange={(e) => {
+                      setReferralCode(e.target.value);
+                      setReferralValidation(null); // Reset validation on change
+                    }}
+                    onBlur={validateReferralCode} // Validate on blur
+                    sx={{ mt: 2 }}
                     InputProps={{
-                      startAdornment: <Gift size={20} style={{ marginRight: 8, color: '#4fc3f7' }} />,
                       endAdornment: validatingReferral ? <CircularProgress size={20} /> : null
                     }}
-                    helperText="Enter a referral code to get a discount (if you haven't used one before)"
                   />
                   {referralValidation && (
-                    <Alert 
-                      severity={referralValidation.isValid ? 'success' : 'error'} 
-                      sx={{ mt: 1 }}
+                    <Box 
+                      sx={{ 
+                        mt: 1, 
+                        p: 1.5, 
+                        borderRadius: 1, 
+                        backgroundColor: referralValidation.valid ? 'success.light' : 'error.light',
+                        color: referralValidation.valid ? 'success.dark' : 'error.dark',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
                     >
-                      {referralValidation.message}
-                      {referralValidation.isValid && referralValidation.discount && (
-                        <> - {referralValidation.discount}% discount will be applied!</>
-                      )}
-                    </Alert>
+                      <Box sx={{ mr: 1, visibility: referralValidation.valid ? 'visible' : 'hidden', display: 'flex' }}>
+                        <CheckCircle />
+                      </Box>
+                      <Typography variant="body2">
+                        {referralValidation.valid
+                          ? `Success! ${referralValidation.discount}% discount applied from ${referralValidation.referrer?.name}.`
+                          : referralValidation.message || referralValidation.error}
+                      </Typography>
+                    </Box>
                   )}
                 </Grid>
                 
@@ -571,7 +573,7 @@ const ConcertDetailPage: React.FC = () => {
                       <Typography color="text.secondary">Subtotal:</Typography>
                       <Typography fontWeight="bold">${((selectedZoneData?.price || 0) * quantity).toFixed(2)}</Typography>
                     </Box>
-                    {referralValidation?.isValid && referralValidation.discount && (
+                    {referralValidation?.valid && referralValidation.discount && (
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography color="success.main">Referral Discount ({referralValidation.discount}%):</Typography>
                         <Typography color="success.main" fontWeight="bold">

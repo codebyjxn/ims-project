@@ -35,7 +35,7 @@ export class PostgresAnalyticsRepository {
         SELECT
           ca.concert_id,
           STRING_AGG(a.artist_name, ', ') AS artists
-        FROM concert_artists ca
+        FROM concert_features_artists ca
         JOIN artists a ON ca.artist_id = a.artist_id
         GROUP BY ca.concert_id
       ) AS artists_agg ON c.concert_id = artists_agg.concert_id

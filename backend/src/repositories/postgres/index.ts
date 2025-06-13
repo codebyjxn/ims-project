@@ -162,7 +162,7 @@ export class PostgresUserRepository implements IUserRepository {
       'DELETE FROM users WHERE user_id = $1',
       [userId]
     );
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async updateReferralPoints(userId: string, points: number): Promise<void> {
@@ -236,7 +236,7 @@ export class PostgresArtistRepository implements IArtistRepository {
       'DELETE FROM artists WHERE artist_id = $1',
       [artistId]
     );
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 
@@ -339,7 +339,7 @@ export class PostgresArenaRepository implements IArenaRepository {
       'DELETE FROM arenas WHERE arena_id = $1',
       [arenaId]
     );
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 
@@ -382,7 +382,28 @@ export class PostgresConcertRepository implements IConcertRepository {
   }
 
   async findAll(): Promise<any[]> {
-    const result = await this.pool.query('SELECT * FROM concerts ORDER BY concert_date');
+    const query = `
+      SELECT
+        c.concert_id,
+        c.concert_date,
+        c.time,
+        c.description,
+        c.arena_id,
+        a.arena_name,
+        a.arena_location,
+        org.organization_name,
+        json_agg(DISTINCT jsonb_build_object('artist_id', art.artist_id, 'artist_name', art.artist_name, 'genre', art.genre)) as artists,
+        json_agg(DISTINCT jsonb_build_object('zone_name', czp.zone_name, 'price', czp.price)) as zone_pricing
+      FROM concerts c
+      LEFT JOIN arenas a ON c.arena_id = a.arena_id
+      LEFT JOIN organizers org ON c.organizer_id = org.user_id
+      LEFT JOIN concert_features_artists cfa ON c.concert_id = cfa.concert_id
+      LEFT JOIN artists art ON cfa.artist_id = art.artist_id
+      LEFT JOIN concert_zone_pricing czp ON c.concert_id = czp.concert_id
+      GROUP BY c.concert_id, a.arena_id, org.user_id
+      ORDER BY c.concert_date;
+    `;
+    const result = await this.pool.query(query);
     return result.rows;
   }
 
@@ -483,7 +504,7 @@ export class PostgresConcertRepository implements IConcertRepository {
       'DELETE FROM concerts WHERE concert_id = $1',
       [concertId]
     );
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async findZonePricing(concertId: string, arenaId: string, zoneName: string): Promise<any | null> {
@@ -529,14 +550,15 @@ export class PostgresTicketRepository implements ITicketRepository {
     const result = await this.pool.query(`
       SELECT t.*, 
              c.concert_date,
-             f.username as fan_username,
-             czp.price
+             c.description as concert_name,
+             c.time as concert_time,
+             ar.arena_name,
+             ar.arena_location,
+             f.username as fan_username
       FROM tickets t
       JOIN concerts c ON t.concert_id = c.concert_id
+      JOIN arenas ar ON t.arena_id = ar.arena_id
       JOIN fans f ON t.fan_id = f.user_id
-      JOIN concert_zone_pricing czp ON t.concert_id = czp.concert_id 
-                                   AND t.arena_id = czp.arena_id 
-                                   AND t.zone_name = czp.zone_name
       WHERE t.ticket_id = $1
     `, [ticketId]);
     
@@ -547,14 +569,15 @@ export class PostgresTicketRepository implements ITicketRepository {
     const result = await this.pool.query(`
       SELECT t.*, 
              c.concert_date,
-             f.username as fan_username,
-             czp.price
+             c.description as concert_name,
+             c.time as concert_time,
+             ar.arena_name,
+             ar.arena_location,
+             f.username as fan_username
       FROM tickets t
       JOIN concerts c ON t.concert_id = c.concert_id
+      JOIN arenas ar ON t.arena_id = ar.arena_id
       JOIN fans f ON t.fan_id = f.user_id
-      JOIN concert_zone_pricing czp ON t.concert_id = czp.concert_id 
-                                   AND t.arena_id = czp.arena_id 
-                                   AND t.zone_name = czp.zone_name
       WHERE t.fan_id = $1
       ORDER BY c.concert_date
     `, [fanId]);
@@ -566,14 +589,15 @@ export class PostgresTicketRepository implements ITicketRepository {
     const result = await this.pool.query(`
       SELECT t.*, 
              c.concert_date,
-             f.username as fan_username,
-             czp.price
+             c.description as concert_name,
+             c.time as concert_time,
+             ar.arena_name,
+             ar.arena_location,
+             f.username as fan_username
       FROM tickets t
       JOIN concerts c ON t.concert_id = c.concert_id
+      JOIN arenas ar ON t.arena_id = ar.arena_id
       JOIN fans f ON t.fan_id = f.user_id
-      JOIN concert_zone_pricing czp ON t.concert_id = czp.concert_id 
-                                   AND t.arena_id = czp.arena_id 
-                                   AND t.zone_name = czp.zone_name
       WHERE t.concert_id = $1
     `, [concertId]);
     
@@ -590,7 +614,7 @@ export class PostgresTicketRepository implements ITicketRepository {
 
   async create(ticketData: any): Promise<any> {
     const result = await this.pool.query(`
-      INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, referral_code_used)
+      INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, purchase_price)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
@@ -600,7 +624,7 @@ export class PostgresTicketRepository implements ITicketRepository {
       ticketData.arena_id,
       ticketData.zone_name,
       ticketData.purchase_date || new Date(),
-      ticketData.referral_code_used || false
+      ticketData.purchase_price
     ]);
     
     return result.rows[0];
@@ -615,7 +639,7 @@ export class PostgresTicketRepository implements ITicketRepository {
       const createdTickets = [];
       for (const ticketData of ticketsData) {
         const result = await client.query(`
-          INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, referral_code_used)
+          INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, purchase_price)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *
         `, [
@@ -625,7 +649,7 @@ export class PostgresTicketRepository implements ITicketRepository {
           ticketData.arena_id,
           ticketData.zone_name,
           ticketData.purchase_date || new Date(),
-          ticketData.referral_code_used || false
+          ticketData.purchase_price
         ]);
         
         createdTickets.push(result.rows[0]);
@@ -647,7 +671,7 @@ export class PostgresTicketRepository implements ITicketRepository {
       'DELETE FROM tickets WHERE ticket_id = $1',
       [ticketId]
     );
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async countByConcertAndZone(concertId: string, zoneName: string): Promise<number> {

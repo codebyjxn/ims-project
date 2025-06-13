@@ -124,13 +124,13 @@ const AdminPanel: React.FC = () => {
             </button>
           </div>
         </div>
-        <div className="status-bar">
-          <div className={`status-item ${apiStatus}`}>
-            {getStatusIcon(apiStatus)}
+      <div className="status-bar">
+        <div className={`status-item ${apiStatus}`}>
+          {getStatusIcon(apiStatus)}
             <span>API Status: {apiStatus}</span>
-          </div>
-          <div className={`status-item ${dbStatus}`}>
-            {getStatusIcon(dbStatus)}
+        </div>
+        <div className={`status-item ${dbStatus}`}>
+          {getStatusIcon(dbStatus)}
             <span>Database Status: {dbStatus}</span>
           </div>
           <button onClick={checkSystemStatus} disabled={loading === 'health'} className="refresh-button">
@@ -145,46 +145,46 @@ const AdminPanel: React.FC = () => {
             <div className="card-header">
               <Database className="icon" />
               <h3>Database Actions</h3>
-            </div>
+      </div>
             <div className="card-content">
               <p>Use these actions to manage the database state.</p>
-              <div className="button-group">
-                <button 
-                  onClick={seedDatabase} 
-                  disabled={loading === 'seed'} 
+          <div className="button-group">
+            <button 
+              onClick={seedDatabase}
+              disabled={loading === 'seed'}
                   className="action-button"
-                >
+            >
                   {loading === 'seed' ? 'Seeding...' : 'Seed Database'}
-                </button>
-                <button 
-                  onClick={migrateToNoSQL} 
-                  disabled={loading === 'migrate'} 
+            </button>
+            <button 
+              onClick={migrateToNoSQL}
+              disabled={loading === 'migrate'}
                   className="action-button"
-                >
+            >
                   {loading === 'migrate' ? 'Migrating...' : 'Migrate to NoSQL'}
-                </button>
-              </div>
-            </div>
+            </button>
           </div>
+          </div>
+        </div>
 
           {/* Analytics Report Navigation */}
-          <div className="card">
+        <div className="card">
             <div className="card-header">
               <BarChart3 className="icon" />
               <h3>Analytics</h3>
-            </div>
+                    </div>
             <div className="card-content">
               <p>View detailed reports on concert performance and ticket sales.</p>
-            </div>
+                      </div>
             <div className="card-footer">
-              <button 
+          <button 
                 onClick={() => navigate('/admin/analytics')}
                 className="action-button"
               >
                 Go to Analytics Report
                 <ArrowRightLeft className="icon" />
-              </button>
-            </div>
+          </button>
+                  </div>
           </div>
         </div>
       </main>

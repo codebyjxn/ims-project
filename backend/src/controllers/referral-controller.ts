@@ -8,7 +8,8 @@ export class ReferralController {
    */
   async validateReferralCode(req: Request, res: Response): Promise<void> {
     try {
-      const { referralCode, fanId } = req.body;
+      const { referralCode } = req.body;
+      const fanId = req.user?.userId;
       
       if (!referralCode) {
         res.status(400).json({ error: 'Referral code is required' });
@@ -16,7 +17,12 @@ export class ReferralController {
       }
 
       if (!fanId) {
-        res.status(400).json({ error: 'Fan ID is required' });
+        res.status(401).json({ error: 'Unauthorized: User not found in session' });
+        return;
+      }
+      
+      if (req.user?.userType !== 'fan') {
+        res.status(403).json({ error: 'Forbidden: Only fans can use referral codes' });
         return;
       }
 
@@ -29,8 +35,8 @@ export class ReferralController {
 
       const fanDetails = fan.fan_details || fan;
       if (fanDetails.referral_code_used) {
-        res.status(400).json({ 
-          error: 'You have already used a referral code',
+        res.status(200).json({ 
+          message: 'You have already used a referral code',
           valid: false 
         });
         return;
@@ -91,8 +97,8 @@ export class ReferralController {
 
       // Validate referral code first
       const validation = await this.validateReferralCodeInternal(referralCode, fanId);
-      if (!validation.valid) {
-        res.status(400).json({ error: validation.error });
+      if (!validation.valid || !validation.referrer) {
+        res.status(400).json({ error: validation.error || 'Invalid referral' });
         return;
       }
 

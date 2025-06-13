@@ -79,10 +79,9 @@ export interface ITicket {
   arena_id: string;
   zone_name: string;
   purchase_date: Date;
-  referral_code_used: boolean;
+  purchase_price: number;
   concert_date: Date;
   fan_username: string;
-  price: number;
 }
 
 // ========== NATIVE MONGODB CONNECTION ==========

@@ -29,7 +29,7 @@ CREATE TABLE fans (
     user_id CHAR(36) PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
     preferred_genre VARCHAR(100),
-    phone_number VARCHAR(20),
+    phone_number VARCHAR(50),
     referral_code VARCHAR(100) UNIQUE NOT NULL,
     referred_by CHAR(36), -- New field for referral system
     referral_points INT DEFAULT 0, -- Points earned from referrals
@@ -111,8 +111,8 @@ CREATE TABLE tickets (
     concert_id CHAR(36),
     arena_id CHAR(36),
     zone_name VARCHAR(100),
+    purchase_price DECIMAL(10, 2) NOT NULL,
     purchase_date DATE,
-    referral_code_used BOOLEAN DEFAULT FALSE, -- Flag to check if the referral code has been used
     FOREIGN KEY (fan_id) REFERENCES fans(user_id),
     FOREIGN KEY (concert_id) REFERENCES concerts(concert_id),
     FOREIGN KEY (concert_id, arena_id, zone_name) REFERENCES concert_zone_pricing(concert_id, arena_id, zone_name)

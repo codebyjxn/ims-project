@@ -30,10 +30,22 @@ const UserDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [attendedConcertsCount, setAttendedConcertsCount] = useState(0);
 
   useEffect(() => {
     loadUserTickets();
   }, []);
+
+  useEffect(() => {
+    if (tickets.length > 0) {
+      const total = tickets.reduce((acc, ticket) => acc + (ticket.totalPrice || 0), 0);
+      setTotalSpent(total);
+      console.log(tickets);
+      const uniqueConcertIds = new Set(tickets.map(ticket => ticket.concert.id));
+      setAttendedConcertsCount(uniqueConcertIds.size);
+    }
+  }, [tickets]);
 
   const loadUserTickets = async () => {
     try {
@@ -290,7 +302,7 @@ const UserDashboard: React.FC = () => {
                     </Typography>
                     
                     <Divider sx={{ my: 2 }} />
-
+                    
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                       <CalendarDays size={18} style={{ marginRight: 10, color: '#666' }} />
                       <Typography variant="body2" color="text.secondary">
@@ -308,12 +320,12 @@ const UserDashboard: React.FC = () => {
                   <CardContent>
                     <Grid container justifyContent="space-between" alignItems="center">
                       <Grid item>
-                        <Typography variant="body2" color="text.secondary">
-                          Purchased: {formatPurchaseDate(ticket.purchaseDate)}
-                        </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Purchased: {formatPurchaseDate(ticket.purchaseDate)}
+                      </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Ticket ID: {ticket.id}
-                        </Typography>
+                      </Typography>
                       </Grid>
                       <Grid item>
                         <Button
@@ -343,7 +355,7 @@ const UserDashboard: React.FC = () => {
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
-                      {tickets.length}
+                      {attendedConcertsCount}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Concerts Attended
@@ -353,7 +365,7 @@ const UserDashboard: React.FC = () => {
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
-                      {tickets.reduce((sum, ticket) => sum + ticket.quantity, 0)}
+                      {tickets.length}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Total Tickets
@@ -363,7 +375,7 @@ const UserDashboard: React.FC = () => {
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
-                      ${tickets.reduce((sum, ticket) => sum + ticket.totalPrice, 0).toFixed(0)}
+                      ${totalSpent.toFixed(2)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Total Spent

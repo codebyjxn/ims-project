@@ -70,9 +70,11 @@ export class TicketService {
       );
 
       // Calculate pricing
-      const basePrice = zoneInfo.price * purchaseRequest.quantity;
-      const discountAmount = basePrice * (referralResult.discount_percentage / 100);
-      const totalPrice = basePrice - discountAmount;
+      const pricePerTicket = zoneInfo.price;
+      const discountPercentage = referralResult.is_valid ? referralResult.discount_percentage : 0;
+      const finalPricePerTicket = pricePerTicket * (1 - discountPercentage / 100);
+      const totalPrice = finalPricePerTicket * purchaseRequest.quantity;
+      const discountAmount = (pricePerTicket * purchaseRequest.quantity) - totalPrice;
 
       // Create tickets
       const tickets = [];
@@ -82,8 +84,7 @@ export class TicketService {
         arena_id: concert.arena_id,
         zone_name: purchaseRequest.zone_name,
         purchase_date: new Date(),
-        referral_code_used: referralResult.is_valid,
-        price: zoneInfo.price,
+        purchase_price: finalPricePerTicket,
         // Denormalized fields for MongoDB
         concert_date: new Date(concert.concert_date),
         fan_username: this.extractFanUsername(fan)
@@ -115,8 +116,7 @@ export class TicketService {
         arena_id: ticket.arena_id,
         zone_name: ticket.zone_name,
         purchase_date: ticket.purchase_date.toISOString(),
-        referral_code_used: ticket.referral_code_used,
-        price: ticket.price || zoneInfo.price,
+        purchase_price: ticket.purchase_price,
         fan_username: ticket.fan_username,
         concert_date: ticket.concert_date?.toISOString() || concert.concert_date
       }));
@@ -153,8 +153,7 @@ export class TicketService {
       arena_id: ticket.arena_id,
       zone_name: ticket.zone_name,
       purchase_date: ticket.purchase_date.toISOString(),
-      referral_code_used: ticket.referral_code_used,
-      price: ticket.price,
+      purchase_price: ticket.purchase_price,
       fan_username: ticket.fan_username,
       concert_date: ticket.concert_date?.toISOString()
     }));
