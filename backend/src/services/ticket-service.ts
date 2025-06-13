@@ -153,7 +153,7 @@ export class TicketService {
       arena_id: ticket.arena_id,
       zone_name: ticket.zone_name,
       purchase_date: new Date(ticket.purchase_date).toISOString(),
-      purchase_price: ticket.purchase_price,
+      purchase_price: parseFloat(ticket.purchase_price) || 0,
       // Denormalized fields from the aggregation/join
       fan_username: ticket.fan_username,
       concert_date: ticket.concert_date ? new Date(ticket.concert_date).toISOString() : undefined,

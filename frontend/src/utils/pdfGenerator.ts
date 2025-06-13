@@ -45,7 +45,7 @@ export const downloadTicketPDF = (ticket: UserTicket) => {
   doc.setFont('helvetica', 'normal');
   doc.text(`Ticket ID: ${ticket.id}`, 20, 90);
   doc.text(`Zone: ${ticket.zone}`, 20, 100);
-  doc.text(`Purchase Price: $${(ticket.totalPrice || 0).toFixed(2)}`, 20, 110);
+  doc.text(`Purchase Price: $${Number(ticket.totalPrice || 0).toFixed(2)}`, 20, 110);
   doc.text(`Purchased On: ${new Date(ticket.purchaseDate).toLocaleDateString()}`, 20, 120);
 
   // Footer

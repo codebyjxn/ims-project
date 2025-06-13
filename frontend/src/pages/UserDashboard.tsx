@@ -305,7 +305,7 @@ const UserDashboard: React.FC = () => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Chip label={`Zone: ${ticket.zone}`} variant="outlined" />
                       <Typography variant="h6" component="p" sx={{ fontWeight: 'bold' }}>
-                        ${(ticket.totalPrice || 0).toFixed(2)}
+                        ${Number(ticket.totalPrice || 0).toFixed(2)}
                       </Typography>
                     </Box>
                     <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
