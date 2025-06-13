@@ -35,10 +35,4 @@ router.post('/validate-purchase', requireFanAuth, CleanTicketController.validate
 
 // ========== ADMIN/ORGANIZER ENDPOINTS ==========
 
-/**
- * Get tickets for any user (admin/organizer only)
- * GET /api/tickets/user/:userId
- */
-router.get('/user/:userId', requireAdminOrOrganizerAuth, CleanTicketController.getUserTickets);
-
 export default router; 

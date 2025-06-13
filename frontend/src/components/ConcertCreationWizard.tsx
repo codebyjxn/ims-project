@@ -24,7 +24,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { api, Arena, Artist, ConcertCreationData } from '../services/api';
+import organizerService, { Arena, Artist, ConcertCreationData } from '../services/api/organizer';
 
 interface Props {
   open: boolean;
@@ -86,8 +86,8 @@ export const ConcertCreationWizard: React.FC<Props> = ({
     try {
       setLoading(true);
       const [arenasData, artistsData] = await Promise.all([
-        api.getArenas(),
-        api.getArtists(),
+        organizerService.getArenas(),
+        organizerService.getArtists(),
       ]);
       setArenas(arenasData);
       setArtists(artistsData);
@@ -192,7 +192,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
           })),
       };
 
-      await api.createConcert(concertData);
+      await organizerService.createConcert(concertData);
       onSuccess();
       handleReset();
       onClose();

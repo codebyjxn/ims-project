@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, UpcomingConcertPerformance } from '../services/api';
+import adminService, { UpcomingConcertPerformance } from '../services/api/admin';
 import { BarChart3, ArrowLeft, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import './AnalyticsReport.css';
 
@@ -17,7 +17,7 @@ const AnalyticsReport: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getUpcomingConcertsPerformance();
+      const data = await adminService.getUpcomingConcertsPerformance();
       setPerformanceData(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load performance data.');

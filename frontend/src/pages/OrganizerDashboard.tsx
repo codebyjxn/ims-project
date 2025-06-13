@@ -16,37 +16,10 @@ import {
   DialogTitle,
   DialogContent
 } from '@mui/material';
-import { api } from '../services/api';
+import organizerService, { OrganizerConcert, OrganizerStats } from '../services/api/organizer';
 import { useAuth } from '../context/AuthContext';
 import ConcertCreationWizard from '../components/ConcertCreationWizard';
 import Navigation from '../components/Navigation';
-
-interface OrganizerConcert {
-  concert_id: string;
-  title: string;
-  date: string;
-  time: string;
-  arena: {
-    name: string;
-    location: string;
-    capacity: number;
-  };
-  artists: {
-    name: string;
-    genre: string;
-  }[];
-  ticketsSold: number;
-  totalRevenue: number;
-  status: 'upcoming' | 'ongoing' | 'completed';
-}
-
-interface OrganizerStats {
-  totalConcerts: number;
-  upcomingConcerts: number;
-  totalTicketsSold: number;
-  totalRevenue: number;
-  averageAttendance: number;
-}
 
 const OrganizerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -68,8 +41,8 @@ const OrganizerDashboard: React.FC = () => {
       
       // Add robust error handling for JSON parsing
       const [concertsData, statsData] = await Promise.all([
-        fetchWithErrorHandling(() => api.getOrganizerConcerts(user?.id)),
-        fetchWithErrorHandling(() => api.getOrganizerStats(user?.id))
+        fetchWithErrorHandling(() => organizerService.getOrganizerConcerts(user?.id)),
+        fetchWithErrorHandling(() => organizerService.getOrganizerStats(user?.id))
       ]);
       
       setConcerts(concertsData || []);

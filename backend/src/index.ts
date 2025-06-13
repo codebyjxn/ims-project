@@ -9,7 +9,6 @@ import { migrationStatus } from './services/migration-status';
 import { createAdminUser } from './scripts/create-admin';
 import adminRoutes from './routes/admin';
 import authRoutes from './routes/auth';
-import unifiedRoutes from './routes/unified';
 import cleanConcertRoutes from './routes/clean-concerts';
 import cleanTicketRoutes from './routes/clean-ticket-routes';
 import referralRoutes from './routes/referrals';
@@ -36,7 +35,6 @@ app.use('/api/tickets', cleanTicketRoutes);
 app.use('/api/concerts', cleanConcertRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/organizer', organizerRoutes);
-app.use('/api/unified', unifiedRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 // Health check endpoint
@@ -96,37 +94,26 @@ app.get('/api', (req, res) => {
     endpoints: {
       health: '/health',
       auth: {
-        databaseInfo: 'GET /api/auth/database-info',
         signup: 'POST /api/auth/signup',
         login: 'POST /api/auth/login'
       },
       admin: {
         seed: 'POST /api/admin/seed',
-        migrate: 'POST /api/admin/migrate', 
-        stats: 'GET /api/admin/stats',
-        health: 'GET /api/admin/health',
-        clear: 'DELETE /api/admin/clear'
+        migrate: 'POST /api/admin/migrate',
+        health: 'GET /api/admin/health'
       },
       tickets: {
         validatePurchase: 'POST /api/tickets/validate-purchase',
         purchase: 'POST /api/tickets/purchase',
-        userTickets: 'GET /api/tickets/user/:userId',
-        concertSummary: 'GET /api/tickets/concert/:concertId/summary'
+        myTickets: 'GET /api/tickets/my-tickets'
       },
       concerts: {
-        browse: 'GET /api/concerts',
         upcoming: 'GET /api/concerts/upcoming',
-        details: 'GET /api/concerts/:concertId',
-        zones: 'GET /api/concerts/:concertId/zones',
-        zoneAvailability: 'GET /api/concerts/:concertId/zones/:zoneId/availability'
+        details: 'GET /api/concerts/:id'
       },
       referrals: {
         validate: 'POST /api/referrals/validate',
-        apply: 'POST /api/referrals/apply',
-        stats: 'GET /api/referrals/stats/:fanId',
-        myReferrals: 'GET /api/referrals/my-referrals/:fanId',
-        awardPoints: 'POST /api/referrals/award-points',
-        convertPoints: 'POST /api/referrals/convert-points'
+        apply: 'POST /api/referrals/apply'
       },
       organizer: {
         concerts: 'GET /api/organizer/concerts/:organizerId',
@@ -139,13 +126,8 @@ app.get('/api', (req, res) => {
         deleteConcert: 'DELETE /api/organizer/concerts/:concertId',
         analytics: 'GET /api/organizer/concerts/:concertId/analytics'
       },
-      unified: {
-        databaseInfo: 'GET /api/unified/database-info',
-        users: 'GET /api/unified/users',
-        user: 'GET /api/unified/users/:id',
-        concerts: 'GET /api/unified/concerts',
-        tickets: 'GET /api/unified/tickets',
-        userTickets: 'GET /api/unified/tickets/user/:userId'
+      analytics: {
+        upcomingPerformance: 'GET /api/analytics/upcoming-performance'
       }
     }
   });

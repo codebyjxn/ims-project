@@ -14,7 +14,7 @@ import {
   Ticket
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import adminService from '../services/api/admin';
 import './AdminPanel.css';
 
 interface HealthStatus {
@@ -40,7 +40,7 @@ const AdminPanel: React.FC = () => {
 
   const checkSystemStatus = async () => {
     try {
-      const response = await api.getHealth();
+      const response = await adminService.getHealth();
       setApiStatus('online');
 
       // Support both the public /health shape (with services.postgres) and
@@ -75,7 +75,7 @@ const AdminPanel: React.FC = () => {
   const seedDatabase = async () => {
     setLoading('seed');
     try {
-      await api.seedDatabase();
+      await adminService.seedDatabase();
       alert('Database seeded successfully!');
     } catch (error: any) {
       alert(`Seeding failed: ${error.message}`);
@@ -87,7 +87,7 @@ const AdminPanel: React.FC = () => {
   const migrateToNoSQL = async () => {
     setLoading('migrate');
     try {
-      await api.migrateToNoSQL();
+      await adminService.migrateToNoSQL();
       alert('Migration completed successfully!');
     } catch (error: any) {
       alert(`Migration failed: ${error.message}`);

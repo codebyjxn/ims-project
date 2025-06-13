@@ -16,7 +16,7 @@ import {
   Alert
 } from '@mui/material';
 import { CalendarDays, MapPin, Users } from 'lucide-react';
-import { api, Concert } from '../services/api';
+import concertService, { Concert } from '../services/api/concert';
 import Navigation from '../components/Navigation';
 
 const ConcertsPage: React.FC = () => {
@@ -30,7 +30,7 @@ const ConcertsPage: React.FC = () => {
     setError(null);
     
     try {
-      const response = await api.getUpcomingConcerts();
+      const response = await concertService.getUpcomingConcerts();
       setConcerts(response);
     } catch (err) {
       setError('Failed to load concerts. Please try again.');

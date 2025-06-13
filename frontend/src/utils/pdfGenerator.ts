@@ -1,15 +1,15 @@
 import { jsPDF } from 'jspdf';
-import { UserTicket } from '../services/api';
+import { UserTicket } from '../services/api/ticket';
 
 export const downloadTicketPDF = (ticket: UserTicket) => {
   const doc = new jsPDF();
 
   // Helper to safely get details
-  const concertName = ticket.concert?.title ?? 'Concert Title Not Available';
-  const arenaName = ticket.concert?.arena.name ?? 'Arena Not Available';
-  const arenaLocation = ticket.concert?.arena.location ?? 'Location Not Available';
-  const concertDate = ticket.concert?.date ? new Date(ticket.concert.date).toLocaleDateString() : 'Date TBD';
-  const concertTime = ticket.concert?.time ?? 'Time TBD';
+  const concertName = ticket.concert_name ?? 'Concert Title Not Available';
+  const arenaName = ticket.arena_name ?? 'Arena Not Available';
+  const arenaLocation = ticket.arena_location ?? 'Location Not Available';
+  const concertDate = ticket.concert_date ? new Date(ticket.concert_date).toLocaleDateString() : 'Date TBD';
+  const concertTime = ticket.concert_time ?? 'Time TBD';
 
   // Set document properties
   doc.setProperties({
@@ -43,15 +43,15 @@ export const downloadTicketPDF = (ticket: UserTicket) => {
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Ticket ID: ${ticket.id}`, 20, 90);
-  doc.text(`Zone: ${ticket.zone}`, 20, 100);
-  doc.text(`Purchase Price: $${Number(ticket.totalPrice || 0).toFixed(2)}`, 20, 110);
-  doc.text(`Purchased On: ${new Date(ticket.purchaseDate).toLocaleDateString()}`, 20, 120);
+  doc.text(`Ticket ID: ${ticket.ticket_id}`, 20, 90);
+  doc.text(`Zone: ${ticket.zone_name}`, 20, 100);
+  doc.text(`Purchase Price: $${Number(ticket.purchase_price || 0).toFixed(2)}`, 20, 110);
+  doc.text(`Purchased On: ${new Date(ticket.purchase_date).toLocaleDateString()}`, 20, 120);
 
   // Footer
   doc.setFontSize(10);
   doc.text('This ticket is non-transferable. Please present this at the entrance.', doc.internal.pageSize.width / 2, 140, { align: 'center' });
   
   // Save the PDF
-  doc.save(`ticket-${concertName.replace(/\s/g, '_')}-${ticket.id.substring(0, 8)}.pdf`);
+  doc.save(`ticket-${concertName.replace(/\s/g, '_')}-${ticket.ticket_id.substring(0, 8)}.pdf`);
 }; 

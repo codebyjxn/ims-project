@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api, LoginCredentials } from '../services/api';
+import authService, { LoginCredentials } from '../services/api/auth';
 import './Login.css';
 
 export function Login() {
@@ -28,7 +28,7 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      const response = await api.login(formData);
+      const response = await authService.login(formData);
       login(response.token, response.user);
       
       // Navigate based on user type

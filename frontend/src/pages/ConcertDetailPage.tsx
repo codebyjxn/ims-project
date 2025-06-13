@@ -23,7 +23,8 @@ import {
   Card
 } from '@mui/material';
 import { CalendarDays, MapPin, Users, Gift, CheckCircle } from 'lucide-react';
-import { api, Concert, ReferralValidation } from '../services/api';
+import concertService, { Concert } from '../services/api/concert';
+import referralService, { ReferralValidation } from '../services/api/referral';
 import { useAuth } from '../context/AuthContext';
 import Navigation from '../components/Navigation';
 
@@ -60,7 +61,7 @@ const ConcertDetailPage: React.FC = () => {
     
     try {
       setLoading(true);
-      const data = await api.getConcertById(id);
+      const data = await concertService.getConcertById(id);
       setConcert(data);
       setError(null);
     } catch (err) {
@@ -107,7 +108,7 @@ const ConcertDetailPage: React.FC = () => {
 
     try {
       setValidatingReferral(true);
-      const validation = await api.validateReferralCode(referralCode.trim());
+      const validation = await referralService.validateReferralCode(referralCode.trim());
       setReferralValidation(validation);
     } catch (err: any) {
       setReferralValidation({
@@ -339,7 +340,7 @@ const ConcertDetailPage: React.FC = () => {
               Performing Artists
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              {concert.artists.map((artist: any) => (
+              {concert.artists && concert.artists.map((artist: any) => (
                 <Chip
                   key={artist.artist_id}
                   label={`${artist.artist_name} (${artist.genre})`}
