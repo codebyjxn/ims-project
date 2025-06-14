@@ -24,13 +24,14 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  organizerId?: string; // Optional - backend will auto-assign
+  organizerId?: string;
 }
 
 interface ZoneConfiguration {
   zone_name: string;
   capacity_per_zone: number;
   price: number;
+  priceInput?: string; 
 }
 
 const steps = [
@@ -53,7 +54,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   const [artists, setArtists] = useState<Artist[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Form data
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
@@ -111,14 +111,18 @@ export const ConcertCreationWizard: React.FC<Props> = ({
         zone_name: zone.zone_name,
         capacity_per_zone: zone.capacity_per_zone,
         price: 0,
+        priceInput: '',
       }))
     );
   };
 
-  const updateZonePrice = (zoneName: string, price: number) => {
+  const updateZonePrice = (zoneName: string, inputValue: string) => {
+    const numericValue = inputValue === '' ? 0 : parseFloat(inputValue) || 0;
     setZoneConfigurations(prev =>
       prev.map(zone =>
-        zone.zone_name === zoneName ? { ...zone, price } : zone
+        zone.zone_name === zoneName 
+          ? { ...zone, price: numericValue, priceInput: inputValue } 
+          : zone
       )
     );
   };
@@ -139,7 +143,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
       setError(null);
 
       const concertData: ConcertCreationData = {
-        ...(organizerId && { organizerId }), // Only include if provided
+        ...(organizerId && { organizerId }), 
         title,
         description,
         date,
@@ -286,8 +290,9 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                           fullWidth
                           label="Price per Ticket ($)"
                           type="number"
-                          value={zone.price}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => updateZonePrice(zone.zone_name, Number(e.target.value))}
+                          value={zone.priceInput !== undefined ? zone.priceInput : (zone.price === 0 ? '' : zone.price.toString())}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => updateZonePrice(zone.zone_name, e.target.value)}
+                          placeholder="Enter price"
                           inputProps={{ min: 0, step: 0.01 }}
                         />
                       </CardContent>
