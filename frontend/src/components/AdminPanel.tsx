@@ -291,6 +291,7 @@ const AdminPanel: React.FC = () => {
             </Card>
           </Grid>
 
+<<<<<<< HEAD
           {/* Analytics Card */}
           <Grid item xs={12} md={6}>
             <Card sx={{ 
@@ -358,6 +359,37 @@ const AdminPanel: React.FC = () => {
         `}
       </style>
     </Box>
+=======
+          {/* Analytics Report Navigation */}
+        <div className="card">
+            <div className="card-header">
+              <BarChart3 className="icon" />
+              <h3>Analytics</h3>
+                    </div>
+            <div className="card-content">
+              <p>View detailed reports on concert performance and organizer analytics.</p>
+              <div className="button-group">
+                <button 
+                  onClick={() => navigate('/admin/analytics')}
+                  className="action-button"
+                >
+                  Concert Analytics Report
+                  <ArrowRightLeft className="icon" />
+                </button>
+                <button 
+                  onClick={() => navigate('/admin/organizers-analytics')}
+                  className="action-button"
+                >
+                  Organizers Analytics Report
+                  <BarChart3 className="icon" />
+                </button>
+              </div>
+                      </div>
+          </div>
+        </div>
+      </main>
+    </div>
+>>>>>>> origin/livia
   );
 };
 

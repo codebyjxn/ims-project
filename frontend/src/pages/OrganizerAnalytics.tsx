@@ -67,7 +67,7 @@ const OrganizerAnalytics: React.FC = () => {
   const handleArenaSelect = (arenaId: string) => {
     const arena = arenas.find(a => a.arena_id === arenaId);
     setSelectedArena(arena || null);
-    setSelectedZone(null); // Reset zone selection
+    setSelectedZone(null); 
   };
 
   const handleZoneSelect = (zoneName: string) => {
@@ -95,7 +95,7 @@ const OrganizerAnalytics: React.FC = () => {
   const getTotalStats = () => {
     if (!selectedArena) return null;
     const totalCapacity = selectedArena.zones.reduce((sum, zone) => sum + zone.capacity_per_zone, 0);
-    // No attendees data from backend
+
     return {
       totalCapacity,
       totalZones: selectedArena.zones.length,
@@ -225,8 +225,8 @@ const OrganizerAnalytics: React.FC = () => {
               </Typography>
 
               {selectedZone ? (
-                /* Single Zone View */
-                <Grid container spacing={3} sx={{ mt: 2 }}>
+
+<Grid container spacing={3} sx={{ mt: 2 }}>
                   <Grid item xs={12} md={6}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Zone: {selectedZone.zone_name}
@@ -237,7 +237,7 @@ const OrganizerAnalytics: React.FC = () => {
                   </Grid>
                 </Grid>
               ) : (
-                /* All Zones View */
+
                 <Grid container spacing={2} sx={{ mt: 2 }}>
                   {selectedArena.zones.map((zone) => {
                     return (
@@ -271,7 +271,7 @@ const OrganizerAnalytics: React.FC = () => {
           </Card>
         )}
 
-        {/* Placeholder for Future Features */}
+
         {selectedArena && (
           <Card sx={{ mt: 4, borderRadius: 2, boxShadow: 1 }}>
             <CardContent>

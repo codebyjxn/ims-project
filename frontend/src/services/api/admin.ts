@@ -12,6 +12,22 @@ export interface UpcomingConcertPerformance {
     tickets_sold: number;
 }
 
+export interface OrganizerAnalytics {
+    orgId: string;
+    orgName: string;
+    contact: string;
+    arena: string;
+    location: string;
+    concerts: number;
+    revenue: number;
+    tickets: number;
+    avgPrice: number;
+    minPrice: number;
+    maxPrice: number;
+    uniqueFans: number;
+    avgTicketsPerConcert: number;
+}
+
 class AdminService {
     async getUpcomingConcertsPerformance(): Promise<UpcomingConcertPerformance[]> {
         return request<UpcomingConcertPerformance[]>('/analytics/upcoming-performance');
@@ -27,6 +43,10 @@ class AdminService {
     
     async migrateToNoSQL(): Promise<any> {
         return request<any>('/admin/migrate', { method: 'POST' });
+    }
+    
+    async getOrganizersAnalytics(): Promise<{ database: string; analytics: OrganizerAnalytics[]; timestamp: string }> {
+        return request<{ database: string; analytics: OrganizerAnalytics[]; timestamp: string }>('/admin/organizers-analytics');
     }
 }
 

@@ -11,6 +11,7 @@ import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
 import AnalyticsReport from './pages/AnalyticsReport';
+import OrganizersAnalyticsReport from './pages/OrganizersAnalyticsReport';
 import './App.css';
 
 // Protected route wrapper for any authenticated user
@@ -150,6 +151,14 @@ function App() {
             element={
               <AdminRoute>
                 <AnalyticsReport />
+              </AdminRoute>
+            }
+          />
+          <Route 
+            path="/admin/organizers-analytics"
+            element={
+              <AdminRoute>
+                <OrganizersAnalyticsReport />
               </AdminRoute>
             }
           />
