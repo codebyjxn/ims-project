@@ -19,6 +19,13 @@ services:
       - MIGRATION_STATUS_FILE=./migration-status.json # or 'mongodb' to switch
       - JWT_SECRET=your-production-secret
       - JWT_EXPIRES_IN=24h
+      # Email configuration (configure these for your email provider)
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
     depends_on:
       - postgres
       - mongodb

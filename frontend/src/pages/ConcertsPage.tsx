@@ -96,7 +96,7 @@ const ConcertsPage: React.FC = () => {
       <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h3" component="h1" gutterBottom sx={{ color: 'white' }}>
-          Upcoming Concerts
+          ConcertGo
         </Typography>
         <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.7)' }}>
           Discover amazing live music experiences

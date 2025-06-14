@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Container, Typography, Box, Paper, Theme } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { useAuth } from '../context/AuthContext';
 
 const HeroSection = styled(Paper)(({ theme }: { theme: Theme }) => ({
   backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url("/images/concert-bg.jpg")',
@@ -29,6 +30,10 @@ const StyledButton = styled(Button)(({ theme }: { theme: Theme }) => ({
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
+
+  // Determine user role
+  const userType = user?.userType;
 
   return (
     <HeroSection>
@@ -43,7 +48,7 @@ const LandingPage: React.FC = () => {
             textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
           }}
         >
-          Concert Booking System
+          ConcertGo
         </Typography>
         
         <Typography
@@ -74,36 +79,138 @@ const LandingPage: React.FC = () => {
           >
             Browse Concerts
           </StyledButton>
-          
-          <StyledButton
-            variant="outlined"
-            size="large"
-            onClick={() => navigate('/login')}
-            sx={{
-              borderColor: 'white',
-              color: 'white',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              },
-            }}
-          >
-            Login
-          </StyledButton>
-          
-          <StyledButton
-            variant="outlined"
-            size="large"
-            onClick={() => navigate('/signup')}
-            sx={{
-              borderColor: 'white',
-              color: 'white',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              },
-            }}
-          >
-            Sign Up
-          </StyledButton>
+
+          {!isAuthenticated && (
+            <>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={() => navigate('/login')}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Login
+              </StyledButton>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={() => navigate('/signup')}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Sign Up
+              </StyledButton>
+            </>
+          )}
+
+          {isAuthenticated && userType === 'fan' && (
+            <>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={() => navigate('/dashboard')}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Fan Panel
+              </StyledButton>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={logout}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Logout
+              </StyledButton>
+            </>
+          )}
+
+          {isAuthenticated && userType === 'admin' && (
+            <>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={() => navigate('/admin')}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Admin Panel
+              </StyledButton>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={logout}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Logout
+              </StyledButton>
+            </>
+          )}
+
+          {isAuthenticated && userType === 'organizer' && (
+            <>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={() => navigate('/organizer')}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Organizer Panel
+              </StyledButton>
+              <StyledButton
+                variant="outlined"
+                size="large"
+                onClick={logout}
+                sx={{
+                  borderColor: 'white',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Logout
+              </StyledButton>
+            </>
+          )}
         </Box>
       </Container>
     </HeroSection>

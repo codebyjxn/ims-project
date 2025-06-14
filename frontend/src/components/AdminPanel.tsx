@@ -291,8 +291,7 @@ const AdminPanel: React.FC = () => {
             </Card>
           </Grid>
 
-<<<<<<< HEAD
-          {/* Analytics Card */}
+          {/* Analytics Report Navigation */}
           <Grid item xs={12} md={6}>
             <Card sx={{ 
               backgroundColor: '#f0f4f8', 
@@ -316,80 +315,56 @@ const AdminPanel: React.FC = () => {
               />
               <CardContent sx={{ padding: '1.5rem', flexGrow: 1 }}>
                 <Typography sx={{ color: '#334155' }}>
-                  View detailed reports on concert performance and ticket sales.
+                  View detailed reports on concert performance and organizer analytics.
                 </Typography>
-              </CardContent>
-              <CardActions sx={{ 
-                padding: '1.5rem', 
-                borderTop: '1px solid #e2e8f0', 
-                backgroundColor: '#f8fafc' 
-              }}>
-                <Button 
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                  <Button 
                   onClick={() => navigate('/admin/analytics')}
-                  endIcon={<ArrowRightLeft size={18} />}
-                  variant="contained"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    padding: '0.75rem 1.5rem',
-                    borderRadius: '8px',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    fontSize: '1rem',
-                    fontWeight: 500,
-                    '&:hover': { backgroundColor: '#2563eb' }
-                  }}
+                    variant="contained"
+                    endIcon={<ArrowRightLeft size={18} />}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1.5rem',
+                      borderRadius: '8px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      '&:hover': { backgroundColor: '#2563eb' }
+                    }}
                 >
-                  Go to Analytics Report
-                </Button>
-              </CardActions>
+                  Concert Analytics Report
+                  </Button>
+                  <Button 
+                  onClick={() => navigate('/admin/organizers-analytics')}
+                    variant="contained"
+                    endIcon={<BarChart3 size={18} />}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1.5rem',
+                      borderRadius: '8px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      '&:hover': { backgroundColor: '#2563eb' }
+                    }}
+                >
+                  Organizers Analytics Report
+                  </Button>
+                </Box>
+              </CardContent>
             </Card>
           </Grid>
         </Grid>
       </Box>
-
-      <style>
-        {`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}
-      </style>
     </Box>
-=======
-          {/* Analytics Report Navigation */}
-        <div className="card">
-            <div className="card-header">
-              <BarChart3 className="icon" />
-              <h3>Analytics</h3>
-                    </div>
-            <div className="card-content">
-              <p>View detailed reports on concert performance and organizer analytics.</p>
-              <div className="button-group">
-                <button 
-                  onClick={() => navigate('/admin/analytics')}
-                  className="action-button"
-                >
-                  Concert Analytics Report
-                  <ArrowRightLeft className="icon" />
-                </button>
-                <button 
-                  onClick={() => navigate('/admin/organizers-analytics')}
-                  className="action-button"
-                >
-                  Organizers Analytics Report
-                  <BarChart3 className="icon" />
-                </button>
-              </div>
-                      </div>
-          </div>
-        </div>
-      </main>
-    </div>
->>>>>>> origin/livia
   );
 };
 

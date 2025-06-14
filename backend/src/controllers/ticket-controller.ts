@@ -32,7 +32,8 @@ export class CleanTicketController {
         concert_id: req.body.concert_id || req.body.concertId,
         zone_name: req.body.zone_name || req.body.zoneId,
         quantity: req.body.quantity,
-        referral_code: req.body.referral_code || req.body.referralCode
+        referral_code: req.body.referral_code || req.body.referralCode,
+        points_to_redeem: req.body.points_to_redeem || req.body.pointsToRedeem
       };
 
       // Basic validation

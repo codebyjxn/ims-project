@@ -4,6 +4,7 @@
 
 // UUID generation will be handled by database or passed in
 import { RepositoryFactory } from '../repositories/factory';
+import { EmailService } from './email-service';
 import { 
   TicketDTO,
   TicketPurchaseRequestDTO,
@@ -53,6 +54,8 @@ export class TicketService {
       if (!zoneInfo) {
         throw new Error('Zone not found for this concert');
       }
+      
+
 
       // Check availability
       const availableTickets = await this.getAvailableTickets(
@@ -71,7 +74,25 @@ export class TicketService {
 
       // Calculate pricing
       const pricePerTicket = zoneInfo.price;
-      const discountPercentage = referralResult.is_valid ? referralResult.discount_percentage : 0;
+      let discountPercentage = referralResult.is_valid ? referralResult.discount_percentage : 0;
+      let pointsDiscount = 0;
+      let pointsUsed = 0;
+      if (purchaseRequest.points_to_redeem && purchaseRequest.points_to_redeem > 0) {
+        // Only allow up to 50 points per purchase, and up to the user's balance
+        const fanPoints = fan.referral_points || (fan.fan_details?.referral_points ?? 0) || 0;
+        pointsUsed = Math.min(50, purchaseRequest.points_to_redeem, fanPoints);
+        if (pointsUsed > 0) {
+          pointsDiscount = pointsUsed; // 1 point = 1% discount
+        }
+      }
+      // Only the higher of referral or points discount applies
+      if (pointsDiscount > discountPercentage) {
+        discountPercentage = pointsDiscount;
+      }
+      // Deduct points if used
+      if (pointsUsed > 0 && pointsDiscount >= discountPercentage) {
+        await userRepo.updateReferralPoints(fanId, -pointsUsed);
+      }
       const finalPricePerTicket = pricePerTicket * (1 - discountPercentage / 100);
       const totalPrice = finalPricePerTicket * purchaseRequest.quantity;
       const discountAmount = (pricePerTicket * purchaseRequest.quantity) - totalPrice;
@@ -121,16 +142,53 @@ export class TicketService {
         concert_date: ticket.concert_date?.toISOString() || concert.concert_date
       }));
 
-      return {
+      const confirmationId = `conf-${Date.now()}`;
+      
+      const purchaseResponse = {
         success: true,
         tickets: ticketDTOs,
         total_amount: totalPrice,
         discount_applied: discountAmount,
-        discount_percentage: referralResult.discount_percentage,
-        confirmation_id: `conf-${Date.now()}`,
+        discount_percentage: discountPercentage,
+        confirmation_id: confirmationId,
         database_type: RepositoryFactory.getCurrentDatabaseType(),
         message: `Successfully purchased ${purchaseRequest.quantity} ticket(s) for ${concert.description || 'concert'}`
       };
+
+      // Send purchase confirmation email
+      try {
+        // Fetch actual arena information
+        let arenaName = 'Concert Arena';
+        try {
+          const factory = RepositoryFactory.getFactory();
+          const arenaRepo = factory.getArenaRepository();
+          const arena = await arenaRepo.findById(concert.arena_id);
+          arenaName = arena?.arena_name || arena?.name || zoneInfo?.arena_name || concert.arena_name || 'Concert Arena';
+        } catch (arenaError) {
+          console.log('Could not fetch arena details:', arenaError);
+          arenaName = zoneInfo?.arena_name || concert.arena_name || concert.venue_name || concert.name || 'Concert Arena';
+        }
+        
+        const emailData = {
+          customerEmail: fan.email,
+          customerName: `${fan.first_name} ${fan.last_name}`,
+          confirmationId: confirmationId,
+          tickets: ticketDTOs,
+          totalAmount: totalPrice,
+          discountApplied: discountAmount,
+          concertName: concert.description || concert.concert_name || 'Concert',
+          concertDate: concert.concert_date,
+          venue: arenaName
+        };
+        
+        // Send email asynchronously to not block the response
+        EmailService.sendTicketPurchaseConfirmation(emailData);
+      } catch (emailError) {
+        console.error('Failed to send purchase confirmation email:', emailError);
+        // Don't fail the purchase if email fails
+      }
+
+      return purchaseResponse;
 
     } catch (error) {
       throw new Error(`Failed to purchase tickets: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -330,4 +388,6 @@ export class TicketService {
     const availableTickets = await concertRepo.findAvailableTickets(concertId, zoneName);
     return availableTickets;
   }
+
+
 } 

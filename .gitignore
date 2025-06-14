@@ -49,3 +49,4 @@ config/nginx/ssl/
 
 # Environment files
 .env.production
+.env

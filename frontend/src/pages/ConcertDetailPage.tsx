@@ -20,7 +20,8 @@ import {
   MenuItem,
   Divider,
   Paper,
-  Card
+  Card,
+  Slider
 } from '@mui/material';
 import { CalendarDays, MapPin, Users, Gift, CheckCircle } from 'lucide-react';
 import concertService, { Concert } from '../services/api/concert';
@@ -42,7 +43,7 @@ interface TicketPurchaseData {
 const ConcertDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, login } = useAuth();
   
   const [concert, setConcert] = useState<Concert | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +57,8 @@ const ConcertDetailPage: React.FC = () => {
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+  const availablePoints = user?.fanDetails?.referralPoints || 0;
+  const [pointsToRedeem, setPointsToRedeem] = useState<number>(0);
 
   const loadConcert = useCallback(async () => {
     if (!id) return;
@@ -127,8 +130,11 @@ const ConcertDetailPage: React.FC = () => {
     if (!zone) return 0;
 
     const basePrice = zone.price * quantity;
-    const discount = referralValidation?.valid ? (referralValidation.discount || 0) : 0;
-    return basePrice * (1 - discount / 100);
+    const pointsDiscount = Math.min(pointsToRedeem, 50);
+    const referralDiscount = referralValidation?.valid ? (referralValidation.discount || 0) : 0;
+    const appliedDiscount = Math.max(pointsDiscount, referralDiscount);
+    const appliedDiscountType = pointsDiscount >= referralDiscount && pointsDiscount > 0 ? 'points' : (referralDiscount > 0 ? 'referral' : null);
+    return basePrice * (1 - appliedDiscount / 100);
   };
 
   const handlePurchase = async () => {
@@ -137,14 +143,19 @@ const ConcertDetailPage: React.FC = () => {
     // Extract user ID from the user object - handle multiple field names
     const fanId = user.id || (user as any).userId || (user as any).user_id;
     
-    const purchaseData = {
+    const purchaseData: any = {
       concertId: id,
       zoneId: selectedZone,
       quantity,
       fanId: fanId,
       paymentMethod: "credit_card", // Required by the API
-      referralCode: referralValidation?.valid ? referralCode.trim() : undefined
     };
+    if (referralValidation?.valid) {
+      purchaseData.referralCode = referralCode.trim();
+    }
+    if (pointsToRedeem > 0) {
+      purchaseData.points_to_redeem = pointsToRedeem;
+    }
 
     try {
       setPurchasing(true);
@@ -155,6 +166,17 @@ const ConcertDetailPage: React.FC = () => {
 
       if (result && result.success && result.tickets && result.tickets.length > 0) {
         setPurchaseSuccess(true);
+        // Deduct used points from local user state (for instant UI update)
+        if (pointsToRedeem > 0 && user.fanDetails) {
+          const updatedUser = {
+            ...user,
+            fanDetails: {
+              ...user.fanDetails,
+              referralPoints: user.fanDetails.referralPoints - pointsToRedeem
+            }
+          };
+          login(localStorage.getItem('token') || '', updatedUser);
+        }
         // Show success message with actual data from API
         setTimeout(() => {
           setPurchaseDialogOpen(false);
@@ -221,6 +243,12 @@ const ConcertDetailPage: React.FC = () => {
   }
 
   const selectedZoneData = concert.zone_pricing?.find((z: any) => z.zone_name === selectedZone);
+
+  // Calculate discounts
+  const pointsDiscount = Math.min(pointsToRedeem, 50);
+  const referralDiscount = referralValidation?.valid ? (referralValidation.discount || 0) : 0;
+  const appliedDiscount = Math.max(pointsDiscount, referralDiscount);
+  const appliedDiscountType = pointsDiscount >= referralDiscount && pointsDiscount > 0 ? 'points' : (referralDiscount > 0 ? 'referral' : null);
 
   return (
     <Box 
@@ -407,7 +435,7 @@ const ConcertDetailPage: React.FC = () => {
                     {zone.zone_name}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    Available: {zone.availableTickets?.toLocaleString()} seats
+                    Available: {((zone as any).available_tickets ?? zone.availableTickets)?.toLocaleString()} seats
                   </Typography>
                 </Box>
                 <Box sx={{ textAlign: 'right' }}>
@@ -540,6 +568,30 @@ const ConcertDetailPage: React.FC = () => {
                 </Grid>
                 
                 <Grid item xs={12}>
+                  <Box sx={{ mt: 2, mb: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      Referral Points: <span style={{ color: '#1976d2' }}>{availablePoints}</span>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Use your points for a discount: 1 point = 1% off (max 50%).
+                    </Typography>
+                    <Slider
+                      value={pointsToRedeem}
+                      onChange={(_, val) => setPointsToRedeem(typeof val === 'number' ? val : 0)}
+                      min={0}
+                      max={Math.min(50, availablePoints)}
+                      step={1}
+                      valueLabelDisplay="auto"
+                      disabled={purchasing}
+                      sx={{ mt: 1, width: '90%' }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {pointsToRedeem} point{pointsToRedeem !== 1 ? 's' : ''} selected ({pointsDiscount}% discount)
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12}>
                   <Divider />
                   <Box sx={{ mt: 2, p: 3, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
                     <Typography variant="h6" gutterBottom sx={{ color: '#333', mb: 2 }}>
@@ -561,11 +613,19 @@ const ConcertDetailPage: React.FC = () => {
                       <Typography color="text.secondary">Subtotal:</Typography>
                       <Typography fontWeight="bold">${((selectedZoneData?.price || 0) * quantity).toFixed(2)}</Typography>
                     </Box>
-                    {referralValidation?.valid && referralValidation.discount && (
+                    {appliedDiscountType === 'referral' && referralValidation?.valid && referralValidation.discount && (
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography color="success.main">Referral Discount ({referralValidation.discount}%):</Typography>
                         <Typography color="success.main" fontWeight="bold">
                           -${(((selectedZoneData?.price || 0) * quantity) * (referralValidation.discount / 100)).toFixed(2)}
+                        </Typography>
+                      </Box>
+                    )}
+                    {appliedDiscountType === 'points' && pointsDiscount > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography color="info.main">Points Discount ({pointsDiscount}%):</Typography>
+                        <Typography color="info.main" fontWeight="bold">
+                          -${(((selectedZoneData?.price || 0) * quantity) * (pointsDiscount / 100)).toFixed(2)}
                         </Typography>
                       </Box>
                     )}

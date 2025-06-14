@@ -107,6 +107,7 @@ export interface TicketPurchaseRequestDTO {
   zone_name: string;
   quantity: number;
   referral_code?: string;
+  points_to_redeem?: number;
 }
 
 export interface TicketPurchaseResponseDTO {
