@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -15,12 +15,6 @@ import {
   Card,
   CardContent,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  List,
-  ListItem,
   Alert,
   CircularProgress,
 } from '@mui/material';
@@ -39,18 +33,11 @@ interface ZoneConfiguration {
   price: number;
 }
 
-interface PerformanceConfiguration {
-  artistId: string;
-  type: 'solo' | 'collaboration';
-  collaboratorId?: string;
-}
-
 const steps = [
   'Concert Details',
   'Arena Selection',
   'Zone Configuration',
   'Artist Selection',
-  'Performance Configuration',
   'Review & Confirm'
 ];
 
@@ -185,8 +172,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
         return selectedArtists.length > 0;
       case 4:
         return true;
-      case 5:
-        return true;
       default:
         return false;
     }
@@ -203,7 +188,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                   fullWidth
                   label="Concert Title"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                   required
                 />
               </Grid>
@@ -214,7 +199,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                   multiline
                   rows={4}
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
                   required
                 />
               </Grid>
@@ -224,7 +209,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                   label="Concert Date"
                   type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDate(e.target.value)}
                   InputLabelProps={{ shrink: true }}
                   required
                 />
@@ -235,7 +220,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                   label="Start Time"
                   type="time"
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTime(e.target.value)}
                   InputLabelProps={{ shrink: true }}
                   required
                 />
@@ -302,7 +287,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                           label="Price per Ticket ($)"
                           type="number"
                           value={zone.price}
-                          onChange={(e) => updateZonePrice(zone.zone_name, Number(e.target.value))}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => updateZonePrice(zone.zone_name, Number(e.target.value))}
                           inputProps={{ min: 0, step: 0.01 }}
                         />
                       </CardContent>
@@ -344,26 +329,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
         );
 
       case 4:
-        return (
-          <Box sx={{ mt: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Performance Configuration</Typography>
-              <Button
-                onClick={() => {}}
-                disabled={selectedArtists.length === 0}
-                variant="outlined"
-                sx={{ textTransform: 'none' }}
-              >
-                + Add Performance
-              </Button>
-            </Box>
-            <List>
-              {/* Performance configuration list items would be populated here */}
-            </List>
-          </Box>
-        );
-
-      case 5:
         return (
           <Box sx={{ mt: 2 }}>
             <Typography variant="h6" gutterBottom>
@@ -479,4 +444,5 @@ export const ConcertCreationWizard: React.FC<Props> = ({
     </Dialog>
   );
 };
+
 export default ConcertCreationWizard;
