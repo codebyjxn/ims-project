@@ -20,6 +20,7 @@ COPY --from=builder /app/package*.json ./
 RUN npm ci --only=production
 
 ENV NODE_ENV=production
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
-ENTRYPOINT ["/app/entrypoint.sh"]
+# COPY entrypoint.sh /app/entrypoint.sh
+# RUN chmod +x /app/entrypoint.sh
+# ENTRYPOINT ["/app/entrypoint.sh"]
+CMD node dist/scripts/create-admin.js && node dist/index.js

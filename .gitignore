@@ -46,6 +46,8 @@ config/nginx/ssl/
 *.key
 *.pem
 
+# TypeScript incremental build info
+*.tsbuildinfo
 
 # Environment files
 .env.production
