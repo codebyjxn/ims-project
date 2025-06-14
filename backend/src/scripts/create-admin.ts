@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { connectMongoDB, getUsersCollection, IUser, closeMongoDB } from '../models/mongodb-schemas';
+import { connectMongoDB, getUsersCollection, IUser } from '../models/mongodb-schemas';
 import { getPool } from '../lib/postgres';
 import { migrationStatus } from '../services/migration-status';
 
@@ -80,7 +80,7 @@ const createMongoDBAdmin = async (verbose: boolean = false): Promise<void> => {
     console.log('\n🔧 Creating MongoDB admin user...');
   }
   
-  await connectMongoDB();
+  await connectMongoDB(); // Ensures singleton is connected
   const usersCollection = getUsersCollection();
   
   // Check if admin user already exists
@@ -90,7 +90,6 @@ const createMongoDBAdmin = async (verbose: boolean = false): Promise<void> => {
     if (verbose) {
       console.log('Admin user already exists in MongoDB');
     }
-    await closeMongoDB();
     return;
   }
 
@@ -110,7 +109,7 @@ const createMongoDBAdmin = async (verbose: boolean = false): Promise<void> => {
   };
   
   await usersCollection.insertOne(adminUser);
-  await closeMongoDB();
+  // Keep MongoDB connection open – no closeMongoDB here
   if (verbose) {
     console.log('✅ Admin user created in MongoDB');
   }

@@ -5,45 +5,39 @@ import { randomUUID } from 'crypto';
 import { config } from '../config';
 import { getUsersCollection, IUser } from '../models/mongodb-schemas';
 import { getPool } from '../lib/postgres';
-import { DatabaseFactory } from '../lib/database-factory';
 import { migrationStatus } from '../services/migration-status';
+import { mongoManager } from '../lib/mongodb-connection';
 
 export class AuthController {
   // Register a new user
   async signup(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        email, 
-        password, 
-        firstName, 
-        lastName, 
+      const {
+        email,
+        password,
+        firstName,
+        lastName,
         userType,
-        // Fan specific fields
         username,
         preferredGenre,
         phoneNumber,
-        // Organizer specific fields
         organizationName,
         contactInfo
       } = req.body;
 
-      // Validate required fields
       if (!email || !password || !firstName || !lastName || !userType) {
         res.status(400).json({ error: 'Missing required fields' });
         return;
       }
 
-      // Validate user type
       if (!['fan', 'organizer', 'admin'].includes(userType)) {
         res.status(400).json({ error: 'Invalid user type' });
         return;
       }
 
-      // Check which database to use
       const currentDb = migrationStatus.getDatabaseType();
-
-      // Check if user already exists
       let existingUser;
+
       if (currentDb === 'mongodb') {
         const usersCollection = getUsersCollection();
         existingUser = await usersCollection.findOne({ email });
@@ -58,18 +52,14 @@ export class AuthController {
         return;
       }
 
-      // Hash password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
-
       const userId = randomUUID();
       let newUser: any;
 
       if (currentDb === 'mongodb') {
-        // MongoDB user creation
         const usersCollection = getUsersCollection();
-        
-        // Create user object for MongoDB
+
         newUser = {
           _id: userId,
           email,
@@ -77,24 +67,21 @@ export class AuthController {
           first_name: firstName,
           last_name: lastName,
           registration_date: new Date(),
-          user_type: userType,
+          user_type: userType
         };
 
-        // Add type-specific details
         if (userType === 'fan') {
           if (!username) {
             res.status(400).json({ error: 'Username is required for fans' });
             return;
           }
 
-          // Check if username is already taken
           const existingUsername = await usersCollection.findOne({ 'fan_details.username': username });
           if (existingUsername) {
             res.status(409).json({ error: 'Username already taken' });
             return;
           }
 
-          // Generate unique referral code
           const referralCode = `${username}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
           newUser.fan_details = {
@@ -117,39 +104,32 @@ export class AuthController {
           };
         }
 
-        // Insert user into MongoDB
         await usersCollection.insertOne(newUser);
       } else {
-        // PostgreSQL user creation
         const pool = getPool();
-        
-        // Insert into users table
+
         const userResult = await pool.query(
           'INSERT INTO users (user_id, email, user_password, first_name, last_name, registration_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
           [userId, email, hashedPassword, firstName, lastName, new Date()]
         );
-        
+
         newUser = userResult.rows[0];
         newUser.user_type = userType;
 
-        // Add type-specific data
         if (userType === 'fan') {
           if (!username) {
             res.status(400).json({ error: 'Username is required for fans' });
             return;
           }
 
-          // Check if username is already taken
           const usernameCheck = await pool.query('SELECT user_id FROM fans WHERE username = $1', [username]);
           if (usernameCheck.rows.length > 0) {
             res.status(409).json({ error: 'Username already taken' });
             return;
           }
 
-          // Generate unique referral code
           const referralCode = `${username}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
-          // Insert into fans table
           await pool.query(
             'INSERT INTO fans (user_id, username, preferred_genre, phone_number, referral_code, referral_points, referral_code_used) VALUES ($1, $2, $3, $4, $5, $6, $7)',
             [userId, username, preferredGenre || '', phoneNumber || '', referralCode, 0, false]
@@ -169,7 +149,6 @@ export class AuthController {
             return;
           }
 
-          // Insert into organizers table
           await pool.query(
             'INSERT INTO organizers (user_id, organization_name, contact_info) VALUES ($1, $2, $3)',
             [userId, organizationName, contactInfo]
@@ -182,14 +161,13 @@ export class AuthController {
         }
       }
 
-      // Generate JWT token
-      const signOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
+      const signOptions: SignOptions = { expiresIn: config.jwt.expiresIn as any };
       const userIdForToken = currentDb === 'mongodb' ? newUser._id : newUser.user_id;
       const token = jwt.sign(
-        { 
-          userId: String(userIdForToken), 
-          email: String(newUser.email), 
-          userType: String(userType) 
+        {
+          userId: String(userIdForToken),
+          email: String(newUser.email),
+          userType: String(newUser.user_type)
         },
         config.jwt.secret as string,
         signOptions
@@ -200,13 +178,26 @@ export class AuthController {
         database: currentDb,
         token,
         user: {
-          id: userIdForToken,
+          id: String(userIdForToken),
           email: newUser.email,
           firstName: newUser.first_name,
           lastName: newUser.last_name,
           userType: newUser.user_type,
-          ...(userType === 'fan' ? { fanDetails: newUser.fan_details } : {}),
-          ...(userType === 'organizer' ? { organizerDetails: newUser.organizer_details } : {})
+          ...(newUser.fan_details ? {
+            fanDetails: {
+              username: newUser.fan_details.username,
+              preferredGenre: newUser.fan_details.preferred_genre,
+              phoneNumber: newUser.fan_details.phone_number,
+              referralCode: newUser.fan_details.referral_code,
+              referralPoints: newUser.fan_details.referral_points
+            }
+          } : {}),
+          ...(newUser.organizer_details ? {
+            organizerDetails: {
+              organizationName: newUser.organizer_details.organization_name,
+              contactInfo: newUser.organizer_details.contact_info
+            }
+          } : {})
         }
       });
     } catch (error) {
@@ -220,43 +211,42 @@ export class AuthController {
     try {
       const { email, password } = req.body;
 
-      // Validate required fields
       if (!email || !password) {
         res.status(400).json({ error: 'Email and password are required' });
         return;
       }
 
-      // Check which database to use
       const currentDb = migrationStatus.getDatabaseType();
       let user: any;
 
       if (currentDb === 'mongodb') {
-        // MongoDB login
-        const usersCollection = getUsersCollection();
-        user = await usersCollection.findOne({ email });
-        
-        if (!user) {
-          res.status(401).json({ error: 'Invalid credentials' });
+        try {
+          const collection = await mongoManager.getCollection<IUser>('users');
+          user = await collection.findOne({ email });
+
+          if (!user) {
+            res.status(401).json({ error: 'Invalid credentials' });
+            return;
+          }
+
+          const isValidPassword = await bcrypt.compare(password, user.user_password);
+          if (!isValidPassword) {
+            res.status(401).json({ error: 'Invalid credentials' });
+            return;
+          }
+
+          await collection.updateOne(
+            { _id: user._id },
+            { $set: { last_login: new Date() } }
+          );
+        } catch (mongoError) {
+          console.error('MongoDB connection error in login:', mongoError);
+          res.status(500).json({ error: 'Database connection error' });
           return;
         }
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.user_password);
-        if (!isValidPassword) {
-          res.status(401).json({ error: 'Invalid credentials' });
-          return;
-        }
-
-        // Update last login
-        await usersCollection.updateOne(
-          { _id: user._id },
-          { $set: { last_login: new Date() } }
-        );
       } else {
-        // PostgreSQL login
         const pool = getPool();
-        
-        // Find user with related data
+
         const result = await pool.query(`
           SELECT u.*, 
                  f.username, f.preferred_genre, f.phone_number, f.referral_code, f.referral_points, f.referral_code_used,
@@ -274,20 +264,17 @@ export class AuthController {
 
         user = result.rows[0];
 
-        // Verify password
         const isValidPassword = await bcrypt.compare(password, user.user_password);
         if (!isValidPassword) {
           res.status(401).json({ error: 'Invalid credentials' });
           return;
         }
 
-        // Update last login
         await pool.query(
           'UPDATE users SET last_login = $1 WHERE user_id = $2',
           [new Date(), user.user_id]
         );
 
-        // Determine user type and structure data like MongoDB format
         if (user.username) {
           user.user_type = 'fan';
           user.fan_details = {
@@ -309,14 +296,13 @@ export class AuthController {
         }
       }
 
-      // Generate JWT token
-      const signOptions: SignOptions = { expiresIn: config.jwt.expiresIn };
+      const signOptions: SignOptions = { expiresIn: config.jwt.expiresIn as any };
       const userIdForToken = currentDb === 'mongodb' ? user._id : user.user_id;
       const token = jwt.sign(
-        { 
-          userId: String(userIdForToken), 
-          email: String(user.email), 
-          userType: String(user.user_type) 
+        {
+          userId: String(userIdForToken),
+          email: String(user.email),
+          userType: String(user.user_type)
         },
         config.jwt.secret as string,
         signOptions
@@ -327,13 +313,26 @@ export class AuthController {
         database: currentDb,
         token,
         user: {
-          id: userIdForToken,
+          id: String(userIdForToken),
           email: user.email,
           firstName: user.first_name,
           lastName: user.last_name,
           userType: user.user_type,
-          ...(user.user_type === 'fan' ? { fanDetails: user.fan_details } : {}),
-          ...(user.user_type === 'organizer' ? { organizerDetails: user.organizer_details } : {})
+          ...(user.fan_details ? {
+            fanDetails: {
+              username: user.fan_details.username,
+              preferredGenre: user.fan_details.preferred_genre,
+              phoneNumber: user.fan_details.phone_number,
+              referralCode: user.fan_details.referral_code,
+              referralPoints: user.fan_details.referral_points
+            }
+          } : {}),
+          ...(user.organizer_details ? {
+            organizerDetails: {
+              organizationName: user.organizer_details.organization_name,
+              contactInfo: user.organizer_details.contact_info
+            }
+          } : {})
         }
       });
     } catch (error) {
@@ -341,4 +340,4 @@ export class AuthController {
       res.status(500).json({ error: 'Internal server error' });
     }
   }
-} 
+}

@@ -76,7 +76,7 @@ interface Ticket {
   arena_id: string;
   zone_name: string;
   purchase_date: Date;
-  referral_code_used: boolean;
+  purchase_price: number;
 }
 
 interface FanReferral {
@@ -129,7 +129,7 @@ export const seedDatabase = async (): Promise<void> => {
     const concertArtists = await seedConcertArtists(concerts, artists);
     console.log(`Seeded ${concertArtists.length} concert-artist relationships`);
 
-    const tickets = await seedTickets(fans, concerts, zones);
+    const tickets = await seedTickets(fans, concerts, concertZonePricing);
     console.log(`Seeded ${tickets.length} tickets`);
 
     console.log('Database seeding completed successfully!');
@@ -153,23 +153,32 @@ const clearDatabase = async (): Promise<void> => {
     'arenas',
     'artists',
     'organizers',
-    'fans',
-    'users'
+    'fans'
+    // 'users' table is handled separately to preserve the admin user
   ];
   
+  const pool = getPool();
+  
   // Disable foreign key checks temporarily
-  await getPool().query('SET session_replication_role = replica;');
+  await pool.query('SET session_replication_role = replica;');
   
   for (const table of tables) {
     try {
-      await getPool().query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
+      await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`);
     } catch (error) {
       console.log(`Table ${table} might not exist yet, continuing...`);
     }
   }
   
+  // Delete all users except the admin
+  try {
+    await pool.query("DELETE FROM users WHERE email != 'admin@concert.com'");
+  } catch (error) {
+    console.log(`Could not clear non-admin users, continuing...`);
+  }
+  
   // Re-enable foreign key checks
-  await getPool().query('SET session_replication_role = DEFAULT;');
+  await pool.query('SET session_replication_role = DEFAULT;');
   
   console.log('Database cleared.');
 };
@@ -222,11 +231,11 @@ const seedFans = async (users: User[]): Promise<Fan[]> => {
       user_id: user.user_id,
       username: faker.internet.userName(),
       preferred_genre: faker.helpers.arrayElement(genres),
-      phone_number: faker.phone.number({ style: 'national' }),
+      phone_number: faker.phone.number(),
       referral_code: referralCode,
-      referred_by: null,
+      referred_by: null, // This will be set in the next step for some fans
       referral_points: 0,
-      referral_code_used: false
+      referral_code_used: false // Initially false for all new fans
     };
     
     await getPool().query(
@@ -237,16 +246,29 @@ const seedFans = async (users: User[]): Promise<Fan[]> => {
     fans.push(fan);
   }
 
-  // Now add some referrals
+  // Now, create some consistent referral relationships
   for (let i = 0; i < fans.length; i++) {
-    if (i > 0 && faker.datatype.boolean()) {
-      const referrer = fans[i - 1];
+    // Let's have about 30% of fans be referred by someone
+    if (i > 0 && Math.random() < 0.3) {
+      const referrerIndex = faker.number.int({ min: 0, max: i - 1 });
+      const referrer = fans[referrerIndex];
       const referred = fans[i];
       
+      // Update the referred fan to link them to the referrer.
+      // The referral_code_used flag remains false until they make a purchase.
       await getPool().query(
-        'UPDATE fans SET referred_by = $1, referral_points = referral_points + 10 WHERE user_id = $2',
+        'UPDATE fans SET referred_by = $1 WHERE user_id = $2',
         [referrer.user_id, referred.user_id]
       );
+      
+      // Give the referrer some points for a successful referral
+      await getPool().query(
+        'UPDATE fans SET referral_points = referral_points + 10 WHERE user_id = $1',
+        [referrer.user_id]
+      );
+
+      // Update local object for consistency in the ticket seeding step
+      referred.referred_by = referrer.user_id;
     }
   }
 
@@ -351,8 +373,15 @@ const seedConcerts = async (organizers: Organizer[], arenas: Arena[]): Promise<C
   for (let i = 0; i < 30; i++) {
     const organizer = faker.helpers.arrayElement(organizers);
     const arena = faker.helpers.arrayElement(arenas);
-    // Ensure concert date is in the future (at least 1 day from now)
-    const concertDate = faker.date.future({ years: 1 });
+    
+    // FIX: Ensure concert date is always at least one day in the future.
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // Set the date to tomorrow
+    const nextYear = new Date();
+    nextYear.setFullYear(today.getFullYear() + 1); // Set to one year from today
+    
+    const concertDate = faker.date.between({ from: tomorrow, to: nextYear });
     
     const concert = {
       concert_id: faker.string.uuid(),
@@ -436,39 +465,49 @@ const seedConcertArtists = async (concerts: Concert[], artists: Artist[]): Promi
   return concertArtists;
 };
 
-const seedTickets = async (fans: Fan[], concerts: Concert[], zones: Zone[]): Promise<Ticket[]> => {
+const seedTickets = async (fans: Fan[], concerts: Concert[], concertPricings: ConcertZonePricing[]): Promise<Ticket[]> => {
   const tickets: Ticket[] = [];
 
   for (let i = 0; i < 100; i++) {
     const fan = faker.helpers.arrayElement(fans);
     const concert = faker.helpers.arrayElement(concerts);
-    const zone = faker.helpers.arrayElement(zones.filter(z => z.arena_id === concert.arena_id));
     
-    // 30% chance of using a referral code
-    const referralCodeUsed = faker.datatype.boolean(0.3);
+    // Find a valid pricing entry for the selected concert
+    const validPricings = concertPricings.filter(p => p.concert_id === concert.concert_id);
+    if (validPricings.length === 0) continue; // Skip if no pricing is defined for this concert
+    
+    const pricing = faker.helpers.arrayElement(validPricings);
+    
+    let purchasePrice = pricing.price;
+
+    // If fan was referred and hasn't used their discount, apply it now
+    if (fan.referred_by && !fan.referral_code_used) {
+      purchasePrice = purchasePrice * 0.90; // Apply 10% discount
+
+      // Mark the fan's referral as used in the database
+      await getPool().query(
+        'UPDATE fans SET referral_code_used = true WHERE user_id = $1',
+        [fan.user_id]
+      );
+      
+      // Also update the local object to prevent re-use in this script run
+      fan.referral_code_used = true;
+    }
     
     const ticket = {
       ticket_id: faker.string.uuid(),
       fan_id: fan.user_id,
       concert_id: concert.concert_id,
-      arena_id: concert.arena_id,
-      zone_name: zone.zone_name,
+      arena_id: pricing.arena_id,
+      zone_name: pricing.zone_name,
       purchase_date: new Date(),
-      referral_code_used: referralCodeUsed
+      purchase_price: purchasePrice
     };
     
     await getPool().query(
-      'INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, referral_code_used) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [ticket.ticket_id, ticket.fan_id, ticket.concert_id, ticket.arena_id, ticket.zone_name, ticket.purchase_date, ticket.referral_code_used]
+      'INSERT INTO tickets (ticket_id, fan_id, concert_id, arena_id, zone_name, purchase_date, purchase_price) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [ticket.ticket_id, ticket.fan_id, ticket.concert_id, ticket.arena_id, ticket.zone_name, ticket.purchase_date, ticket.purchase_price]
     );
-    
-    // If referral code was used, update the fan's referral_code_used status
-    if (referralCodeUsed) {
-      await getPool().query(
-        'UPDATE fans SET referral_code_used = true WHERE user_id = $1',
-        [fan.user_id]
-      );
-    }
     
     tickets.push(ticket);
   }

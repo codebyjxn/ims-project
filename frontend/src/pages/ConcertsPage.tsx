@@ -16,14 +16,13 @@ import {
   Alert
 } from '@mui/material';
 import { CalendarDays, MapPin, Users } from 'lucide-react';
-import { api, Concert } from '../services/api';
+import concertService, { Concert } from '../services/api/concert';
 import Navigation from '../components/Navigation';
 
 const ConcertsPage: React.FC = () => {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [genreFilter, setGenreFilter] = useState<string>('');
   const navigate = useNavigate();
 
   const loadConcerts = useCallback(async () => {
@@ -31,7 +30,7 @@ const ConcertsPage: React.FC = () => {
     setError(null);
     
     try {
-      const response = await api.getUpcomingConcerts();
+      const response = await concertService.getUpcomingConcerts();
       setConcerts(response);
     } catch (err) {
       setError('Failed to load concerts. Please try again.');
@@ -59,20 +58,6 @@ const ConcertsPage: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const getAvailableGenres = () => {
-    const genres = new Set<string>();
-    if (Array.isArray(concerts)) {
-      concerts.forEach(concert => {
-        if (concert.artists && Array.isArray(concert.artists)) {
-          concert.artists.forEach(artist => {
-            if (artist.genre) genres.add(artist.genre);
-          });
-        }
-      });
-    }
-    return Array.from(genres).sort();
   };
 
   const handleViewConcert = (concertId: string) => {
@@ -118,42 +103,11 @@ const ConcertsPage: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Filter Controls */}
-      <Box sx={{ mb: 4 }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel sx={{ color: 'rgba(255,255,255,0.7)' }}>Filter by Genre</InputLabel>
-          <Select
-            value={genreFilter}
-            label="Filter by Genre"
-            onChange={(e) => setGenreFilter(e.target.value)}
-            sx={{
-              color: 'white',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255,255,255,0.3)',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255,255,255,0.5)',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#4fc3f7',
-              },
-            }}
-          >
-            <MenuItem value="">All Genres</MenuItem>
-            {getAvailableGenres().map((genre) => (
-              <MenuItem key={genre} value={genre}>
-                {genre}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-
       {/* Concerts Grid */}
-      {concerts.length === 0 ? (
+      {concerts && concerts.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-            No concerts found for the selected criteria
+            No upcoming concerts at the moment. Please check back soon!
           </Typography>
         </Box>
       ) : (

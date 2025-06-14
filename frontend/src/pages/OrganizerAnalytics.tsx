@@ -20,60 +20,30 @@ import {
 } from '@mui/material';
 import Navigation from '../components/Navigation';
 import { useAuth } from '../context/AuthContext';
+import organizerService, { Arena } from '../services/api/organizer';
 
-// Dummy data for demonstration
-const dummyArenas = [
-  {
-    id: 1,
-    name: "Main Arena",
-    zones: [
-      { id: "A", name: "Zone A", attendees: 120, capacity: 200, entryCount: 125, exitCount: 5 },
-      { id: "B", name: "Zone B", attendees: 80, capacity: 150, entryCount: 85, exitCount: 5 },
-      { id: "C", name: "Zone C", attendees: 200, capacity: 200, entryCount: 205, exitCount: 5 },
-    ],
-  },
-  {
-    id: 2,
-    name: "Outdoor Arena",
-    zones: [
-      { id: "X", name: "Zone X", attendees: 40, capacity: 100, entryCount: 42, exitCount: 2 },
-      { id: "Y", name: "Zone Y", attendees: 60, capacity: 90, entryCount: 65, exitCount: 5 },
-      { id: "Z", name: "Zone Z", attendees: 0, capacity: 75, entryCount: 0, exitCount: 0 },
-    ],
-  },
-  {
-    id: 3,
-    name: "Indoor Stadium",
-    zones: [
-      { id: "VIP", name: "VIP Section", attendees: 25, capacity: 50, entryCount: 30, exitCount: 5 },
-      { id: "GEN", name: "General Admission", attendees: 300, capacity: 400, entryCount: 315, exitCount: 15 },
-    ],
-  },
-];
-
-interface Arena {
-  id: number;
-  name: string;
-  zones: Zone[];
-  nzones?: number;
+interface ZoneAnalytics {
+  zone_name: string;
+  capacity_per_zone: number;
+  tickets_sold: number;
+  revenue: number;
 }
 
-interface Zone {
-  id: string;
-  name: string;
-  attendees: number;
-  capacity: number;
-  entryCount: number;
-  exitCount: number;
+interface ArenaAnalytics {
+  arena_id: string;
+  arena_name: string;
+  arena_location: string;
+  total_capacity: number;
+  zones: ZoneAnalytics[];
 }
 
 const OrganizerAnalytics: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  const [selectedArena, setSelectedArena] = useState<Arena | null>(null);
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
-  const [arenas, setArenas] = useState<Arena[]>([]);
+  const [selectedArena, setSelectedArena] = useState<ArenaAnalytics | null>(null);
+  const [selectedZone, setSelectedZone] = useState<ZoneAnalytics | null>(null);
+  const [arenas, setArenas] = useState<ArenaAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,17 +54,8 @@ const OrganizerAnalytics: React.FC = () => {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
-      
-      // Simulate API call with dummy data
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-      
-      // Add nzones property to each arena
-      const enrichedArenas = dummyArenas.map(arena => ({
-        ...arena,
-        nzones: arena.zones.length
-      }));
-      
-      setArenas(enrichedArenas);
+      const analyticsData = await organizerService.getArenasAnalytics();
+      setArenas(analyticsData);
       setError(null);
     } catch (err) {
       setError('Failed to load analytics data');
@@ -103,16 +64,21 @@ const OrganizerAnalytics: React.FC = () => {
     }
   };
 
-  const handleArenaSelect = (arenaId: number) => {
-    const arena = arenas.find(a => a.id === arenaId);
+  const handleArenaSelect = (arenaId: string) => {
+    const arena = arenas.find(a => a.arena_id === arenaId);
     setSelectedArena(arena || null);
     setSelectedZone(null); // Reset zone selection
   };
 
-  const handleZoneSelect = (zoneId: string) => {
+  const handleZoneSelect = (zoneName: string) => {
     if (!selectedArena) return;
-    const zone = selectedArena.zones.find(z => z.id === zoneId);
-    setSelectedZone(zone || null);
+    const zone = selectedArena.zones.find(z => z.zone_name === zoneName);
+    setSelectedZone(zone ? {
+      zone_name: zone.zone_name,
+      capacity_per_zone: zone.capacity_per_zone,
+      tickets_sold: zone.tickets_sold,
+      revenue: zone.revenue,
+    } : null);
   };
 
   const calculateOccupancyPercentage = (attendees: number, capacity: number) => {
@@ -128,17 +94,11 @@ const OrganizerAnalytics: React.FC = () => {
 
   const getTotalStats = () => {
     if (!selectedArena) return null;
-    
-    const totalCapacity = selectedArena.zones.reduce((sum, zone) => sum + zone.capacity, 0);
-    const totalAttendees = selectedArena.zones.reduce((sum, zone) => sum + zone.attendees, 0);
-    const occupiedZones = selectedArena.zones.filter(zone => zone.attendees > 0).length;
-    
+    const totalCapacity = selectedArena.zones.reduce((sum, zone) => sum + zone.capacity_per_zone, 0);
+    // No attendees data from backend
     return {
       totalCapacity,
-      totalAttendees,
-      occupiedZones,
       totalZones: selectedArena.zones.length,
-      occupancyRate: Math.round((totalAttendees / totalCapacity) * 100)
     };
   };
 
@@ -191,13 +151,13 @@ const OrganizerAnalytics: React.FC = () => {
                 <FormControl fullWidth>
                   <InputLabel>Arena</InputLabel>
                   <Select
-                    value={selectedArena?.id || ''}
-                    onChange={(e) => handleArenaSelect(Number(e.target.value))}
+                    value={selectedArena?.arena_id || ''}
+                    onChange={(e) => handleArenaSelect(e.target.value)}
                     label="Arena"
                   >
                     {arenas.map((arena) => (
-                      <MenuItem key={arena.id} value={arena.id}>
-                        {arena.name} ({arena.nzones} zones)
+                      <MenuItem key={arena.arena_id} value={arena.arena_id}>
+                        {arena.arena_name} ({arena.zones.length} zones)
                       </MenuItem>
                     ))}
                   </Select>
@@ -208,14 +168,14 @@ const OrganizerAnalytics: React.FC = () => {
                 <FormControl fullWidth disabled={!selectedArena}>
                   <InputLabel>Zone (Optional)</InputLabel>
                   <Select
-                    value={selectedZone?.id || ''}
+                    value={selectedZone?.zone_name || ''}
                     onChange={(e) => handleZoneSelect(e.target.value)}
                     label="Zone (Optional)"
                   >
                     <MenuItem value="">All Zones</MenuItem>
                     {selectedArena?.zones.map((zone) => (
-                      <MenuItem key={zone.id} value={zone.id}>
-                        {zone.name} ({zone.attendees}/{zone.capacity})
+                      <MenuItem key={zone.zone_name} value={zone.zone_name}>
+                        {zone.zone_name} ({zone.capacity_per_zone})
                       </MenuItem>
                     ))}
                   </Select>
@@ -232,19 +192,6 @@ const OrganizerAnalytics: React.FC = () => {
               <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
                 <CardContent>
                   <Typography variant="h4" sx={{ fontWeight: 700, color: '#1976d2' }}>
-                    {totalStats.totalAttendees}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Attendees
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
-                <CardContent>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: '#2e7d32' }}>
                     {totalStats.totalCapacity}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -257,24 +204,11 @@ const OrganizerAnalytics: React.FC = () => {
             <Grid item xs={12} sm={6} md={3}>
               <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
                 <CardContent>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: '#ed6c02' }}>
-                    {totalStats.occupiedZones}/{totalStats.totalZones}
+                  <Typography variant="h4" sx={{ fontWeight: 700, color: '#2e7d32' }}>
+                    {totalStats.totalZones}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Occupied Zones
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
-                <CardContent>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: '#1565c0' }}>
-                    {totalStats.occupancyRate}%
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Overall Occupancy
+                    Total Zones
                   </Typography>
                 </CardContent>
               </Card>
@@ -287,59 +221,18 @@ const OrganizerAnalytics: React.FC = () => {
           <Card sx={{ borderRadius: 2, boxShadow: 1 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                {selectedZone ? `Zone Details: ${selectedZone.name}` : `${selectedArena.name} - All Zones`}
+                {selectedZone ? `Zone Details: ${selectedZone.zone_name}` : `${selectedArena.arena_name} - All Zones`}
               </Typography>
 
               {selectedZone ? (
                 /* Single Zone View */
                 <Grid container spacing={3} sx={{ mt: 2 }}>
                   <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 3 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2">Occupancy</Typography>
-                        <Typography variant="body2">
-                          {selectedZone.attendees}/{selectedZone.capacity} 
-                          ({calculateOccupancyPercentage(selectedZone.attendees, selectedZone.capacity)}%)
-                        </Typography>
-                      </Box>
-                      <LinearProgress 
-                        variant="determinate" 
-                        value={calculateOccupancyPercentage(selectedZone.attendees, selectedZone.capacity)}
-                        color={getOccupancyColor(calculateOccupancyPercentage(selectedZone.attendees, selectedZone.capacity))}
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
-                    </Box>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">Entry Count</Typography>
-                        <Typography variant="h6">{selectedZone.entryCount}</Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">Exit Count</Typography>
-                        <Typography variant="h6">{selectedZone.exitCount}</Typography>
-                      </Grid>
-                    </Grid>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Live Status
+                      Zone: {selectedZone.zone_name}
                     </Typography>
-                    <Chip 
-                      label={selectedZone.attendees === 0 ? 'Empty' : 
-                             selectedZone.attendees >= selectedZone.capacity ? 'Full' : 'Active'}
-                      color={selectedZone.attendees === 0 ? 'default' : 
-                             selectedZone.attendees >= selectedZone.capacity ? 'error' : 'success'}
-                      sx={{ mb: 2 }}
-                    />
-                    
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Capacity Utilization
-                    </Typography>
-                    <Typography variant="body1">
-                      {calculateOccupancyPercentage(selectedZone.attendees, selectedZone.capacity)}% 
-                      {selectedZone.attendees >= selectedZone.capacity * 0.9 && ' (Near Capacity)'}
+                      Capacity: {selectedZone.capacity_per_zone}
                     </Typography>
                   </Grid>
                 </Grid>
@@ -347,9 +240,8 @@ const OrganizerAnalytics: React.FC = () => {
                 /* All Zones View */
                 <Grid container spacing={2} sx={{ mt: 2 }}>
                   {selectedArena.zones.map((zone) => {
-                    const occupancyPercentage = calculateOccupancyPercentage(zone.attendees, zone.capacity);
                     return (
-                      <Grid item xs={12} md={6} lg={4} key={zone.id}>
+                      <Grid item xs={12} md={6} lg={4} key={zone.zone_name}>
                         <Card 
                           variant="outlined" 
                           sx={{ 
@@ -357,41 +249,17 @@ const OrganizerAnalytics: React.FC = () => {
                             cursor: 'pointer',
                             '&:hover': { backgroundColor: '#f5f5f5' }
                           }}
-                          onClick={() => handleZoneSelect(zone.id)}
+                          onClick={() => handleZoneSelect(zone.zone_name)}
                         >
                           <CardContent>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                               <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                {zone.name}
+                                {zone.zone_name}
                               </Typography>
-                              <Chip 
-                                label={zone.attendees === 0 ? 'Empty' : 
-                                       zone.attendees >= zone.capacity ? 'Full' : 'Active'}
-                                color={zone.attendees === 0 ? 'default' : 
-                                       zone.attendees >= zone.capacity ? 'error' : 'success'}
-                                size="small"
-                              />
                             </Box>
-
                             <Typography variant="body2" color="text.secondary" gutterBottom>
-                              Occupancy: {zone.attendees}/{zone.capacity} ({occupancyPercentage}%)
+                              Capacity: {zone.capacity_per_zone}
                             </Typography>
-                            
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={occupancyPercentage}
-                              color={getOccupancyColor(occupancyPercentage)}
-                              sx={{ height: 6, borderRadius: 3, mb: 2 }}
-                            />
-
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <Typography variant="caption" color="text.secondary">
-                                Entries: {zone.entryCount}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Exits: {zone.exitCount}
-                              </Typography>
-                            </Box>
                           </CardContent>
                         </Card>
                       </Grid>

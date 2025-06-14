@@ -80,4 +80,9 @@ router.get('/concerts/:concertId/analytics', ensureOrganizer, (req, res) => {
   organizerController.getConcertAnalytics(req, res);
 });
 
+// Arena analytics for organizer
+router.get('/arenas/analytics', ensureOrganizer, (req, res) => {
+  organizerController.getArenasAnalytics(req, res);
+});
+
 export default router; 

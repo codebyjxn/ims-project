@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api, SignupFanData, SignupOrganizerData } from '../services/api';
+import authService, { SignupFanData, SignupOrganizerData } from '../services/api/auth';
 import './Login.css';
 
 type UserType = 'fan' | 'organizer';
@@ -61,8 +61,8 @@ export function Signup() {
 
     try {
       const response = await (userType === 'fan'
-        ? api.signupFan(formData as SignupFanData)
-        : api.signupOrganizer(formData as SignupOrganizerData)
+        ? authService.signupFan(formData as SignupFanData)
+        : authService.signupOrganizer(formData as SignupOrganizerData)
       );
       
       login(response.token, response.user);
@@ -86,6 +86,7 @@ export function Signup() {
 
   return (
     <div className="auth-container">
+      <Link to="/" className="back-to-home">← Back to Home</Link>
       <div className="auth-box">
         <h2>Create Account</h2>
         {error && <div className="error-message">{error}</div>}

@@ -19,29 +19,9 @@ router.post('/migrate', async (req, res) => {
   await adminController.migrateData(req, res);
 });
 
-// Get database statistics
-router.get('/stats', async (req, res) => {
-  await adminController.getDatabaseStats(req, res);
-});
-
 // Health check for both databases
 router.get('/health', async (req, res) => {
   await adminController.healthCheck(req, res);
-});
-
-// Get migration status
-router.get('/migration-status', async (req, res) => {
-  await adminController.getMigrationStatus(req, res);
-});
-
-// Reset migration status (rollback to PostgreSQL)
-router.post('/reset-migration', async (req, res) => {
-  await adminController.resetMigrationStatus(req, res);
-});
-
-// Clear all data from databases (use with caution)
-router.delete('/clear', async (req, res) => {
-  await adminController.clearData(req, res);
 });
 
 export default router; 

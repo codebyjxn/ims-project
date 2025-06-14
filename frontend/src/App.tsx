@@ -10,7 +10,9 @@ import OrganizerAnalytics from './pages/OrganizerAnalytics';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
+import AnalyticsReport from './pages/AnalyticsReport';
 import './App.css';
+import './components/Login.css';
 
 // Protected route wrapper for any authenticated user
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -143,6 +145,14 @@ function App() {
                 <AdminPanel />
               </AdminRoute>
             } 
+          />
+          <Route 
+            path="/admin/analytics"
+            element={
+              <AdminRoute>
+                <AnalyticsReport />
+              </AdminRoute>
+            }
           />
         </Routes>
       </Router>

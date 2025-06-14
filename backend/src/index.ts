@@ -4,15 +4,16 @@ import dotenv from 'dotenv';
 import { config } from './config';
 import { getPool } from './lib/postgres';
 import { connectMongoDB, getDatabase, closeMongoDB } from './models/mongodb-schemas';
+import { mongoManager } from './lib/mongodb-connection';
 import { migrationStatus } from './services/migration-status';
 import { createAdminUser } from './scripts/create-admin';
 import adminRoutes from './routes/admin';
-import ticketRoutes from './routes/tickets';
 import authRoutes from './routes/auth';
-import unifiedRoutes from './routes/unified';
-import concertRoutes from './routes/concerts';
+import cleanConcertRoutes from './routes/clean-concerts';
+import cleanTicketRoutes from './routes/clean-ticket-routes';
 import referralRoutes from './routes/referrals';
 import organizerRoutes from './routes/organizer';
+import analyticsRoutes from './routes/analytics';
 
 // Load environment variables
 dotenv.config();
@@ -30,58 +31,15 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/tickets', ticketRoutes);
-app.use('/api/concerts', concertRoutes);
+app.use('/api/tickets', cleanTicketRoutes);
+app.use('/api/concerts', cleanConcertRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/organizer', organizerRoutes);
-app.use('/api/unified', unifiedRoutes); // Database-agnostic routes
+app.use('/api/analytics', analyticsRoutes);
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    const health = {
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      currentDatabase: migrationStatus.getDatabaseType(),
-      migrated: migrationStatus.isMigrated(),
-      services: {
-        postgres: 'disconnected',
-        mongodb: 'disconnected'
-      }
-    };
-
-    // Test PostgreSQL connection
-    try {
-      await getPool().query('SELECT 1');
-      health.services.postgres = 'connected';
-    } catch (error) {
-      health.services.postgres = 'disconnected';
-    }
-
-    // Test MongoDB connection
-    try {
-      const db = getDatabase();
-      await db.admin().ping();
-      health.services.mongodb = 'connected';
-    } catch (error) {
-      health.services.mongodb = 'disconnected';
-    }
-
-    // Set overall status
-    if (health.services.postgres === 'connected' && health.services.mongodb === 'connected') {
-      health.status = 'OK';
-      res.status(200).json(health);
-    } else {
-      health.status = 'DEGRADED';
-      res.status(503).json(health);
-    }
-  } catch (error) {
-    res.status(500).json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      error: 'Health check failed'
-    });
-  }
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
 });
 
 // API routes
@@ -92,37 +50,26 @@ app.get('/api', (req, res) => {
     endpoints: {
       health: '/health',
       auth: {
-        databaseInfo: 'GET /api/auth/database-info',
         signup: 'POST /api/auth/signup',
         login: 'POST /api/auth/login'
       },
       admin: {
         seed: 'POST /api/admin/seed',
         migrate: 'POST /api/admin/migrate', 
-        stats: 'GET /api/admin/stats',
-        health: 'GET /api/admin/health',
-        clear: 'DELETE /api/admin/clear'
+        health: 'GET /api/admin/health'
       },
       tickets: {
         validatePurchase: 'POST /api/tickets/validate-purchase',
         purchase: 'POST /api/tickets/purchase',
-        userTickets: 'GET /api/tickets/user/:userId',
-        concertSummary: 'GET /api/tickets/concert/:concertId/summary'
+        myTickets: 'GET /api/tickets/my-tickets'
       },
       concerts: {
-        browse: 'GET /api/concerts',
         upcoming: 'GET /api/concerts/upcoming',
-        details: 'GET /api/concerts/:concertId',
-        zones: 'GET /api/concerts/:concertId/zones',
-        zoneAvailability: 'GET /api/concerts/:concertId/zones/:zoneId/availability'
+        details: 'GET /api/concerts/:id'
       },
       referrals: {
         validate: 'POST /api/referrals/validate',
-        apply: 'POST /api/referrals/apply',
-        stats: 'GET /api/referrals/stats/:fanId',
-        myReferrals: 'GET /api/referrals/my-referrals/:fanId',
-        awardPoints: 'POST /api/referrals/award-points',
-        convertPoints: 'POST /api/referrals/convert-points'
+        apply: 'POST /api/referrals/apply'
       },
       organizer: {
         concerts: 'GET /api/organizer/concerts/:organizerId',
@@ -135,13 +82,8 @@ app.get('/api', (req, res) => {
         deleteConcert: 'DELETE /api/organizer/concerts/:concertId',
         analytics: 'GET /api/organizer/concerts/:concertId/analytics'
       },
-      unified: {
-        databaseInfo: 'GET /api/unified/database-info',
-        users: 'GET /api/unified/users',
-        user: 'GET /api/unified/users/:id',
-        concerts: 'GET /api/unified/concerts',
-        tickets: 'GET /api/unified/tickets',
-        userTickets: 'GET /api/unified/tickets/user/:userId'
+      analytics: {
+        upcomingPerformance: 'GET /api/analytics/upcoming-performance'
       }
     }
   });

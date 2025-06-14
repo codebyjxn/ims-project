@@ -86,7 +86,12 @@ export const migrateToMongoDB = async (): Promise<{
       await usersCollection.insertOne(adminUser);
       console.log('✅ Admin user recreated in MongoDB');
     } else {
-      console.log('Admin user already exists in MongoDB');
+      // If admin exists, ensure the user_type is 'admin'
+      await usersCollection.updateOne(
+        { email: ADMIN_EMAIL },
+        { $set: { user_type: 'admin' } }
+      );
+      console.log('Admin user already exists in MongoDB, user_type ensured.');
     }
 
     console.log('Migration completed successfully!');
@@ -139,6 +144,22 @@ const migrateUsers = async (): Promise<number> => {
     const mongoUsers: IUser[] = [];
 
     for (const user of users) {
+      // Explicitly check for the admin user
+      if (user.email === ADMIN_EMAIL) {
+        const adminMongoUser: IUser = {
+          _id: user.user_id,
+          email: user.email,
+          user_password: user.user_password,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          registration_date: user.registration_date,
+          last_login: user.last_login,
+          user_type: 'admin' // Correctly assign admin type
+        };
+        mongoUsers.push(adminMongoUser);
+        continue; // Skip to the next user
+      }
+
       const mongoUser: IUser = {
         _id: user.user_id,
         email: user.email,
@@ -173,7 +194,7 @@ const migrateUsers = async (): Promise<number> => {
       }
 
       // Check if user is an organizer
-      if (tablesExist.rows[0].organizers_exist && mongoUser.user_type === 'fan') {
+      if (tablesExist.rows[0].organizers_exist) { // Simpler check
         const organizerResult = await pool.query(
           'SELECT * FROM organizers WHERE user_id = $1', 
           [user.user_id]
@@ -452,7 +473,8 @@ const migrateTickets = async (): Promise<number> => {
       arena_id: ticket.arena_id,
       zone_name: ticket.zone_name,
       purchase_date: ticket.purchase_date,
-      referral_code_used: ticket.referral_code_used,
+      purchase_price: ticket.price,
+      referral_code_used: ticket.referral_code_used === 'true',
       concert_date: ticket.concert_date || new Date(),
       fan_username: ticket.fan_username || 'Unknown',
       price: ticket.price || 0
