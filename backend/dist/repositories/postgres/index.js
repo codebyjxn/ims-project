@@ -13,6 +13,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostgresRepositoryFactory = exports.PostgresTicketRepository = exports.PostgresConcertRepository = exports.PostgresArenaRepository = exports.PostgresArtistRepository = exports.PostgresUserRepository = void 0;
 const postgres_1 = require("../../lib/postgres");
+const organizer_1 = require("./organizer");
 class PostgresUserRepository {
     constructor() {
         this.pool = (0, postgres_1.getPool)();
@@ -570,6 +571,7 @@ class PostgresRepositoryFactory {
         this.arenaRepository = new PostgresArenaRepository();
         this.concertRepository = new PostgresConcertRepository();
         this.ticketRepository = new PostgresTicketRepository();
+        this.organizerRepository = new organizer_1.PostgresOrganizerRepository();
     }
     getUserRepository() {
         return this.userRepository;
@@ -585,6 +587,9 @@ class PostgresRepositoryFactory {
     }
     getTicketRepository() {
         return this.ticketRepository;
+    }
+    getOrganizerRepository() {
+        return this.organizerRepository;
     }
 }
 exports.PostgresRepositoryFactory = PostgresRepositoryFactory;

@@ -17,13 +17,29 @@ class RepositoryFactory {
             if (!this.mongoFactory) {
                 this.mongoFactory = new mongodb_1.MongoRepositoryFactory();
             }
-            return this.mongoFactory;
+            const factory = this.mongoFactory;
+            return {
+                getUserRepository: () => factory.getUserRepository(),
+                getArtistRepository: () => factory.getArtistRepository(),
+                getArenaRepository: () => factory.getArenaRepository(),
+                getConcertRepository: () => factory.getConcertRepository(),
+                getTicketRepository: () => factory.getTicketRepository(),
+                getOrganizerRepository: () => factory.getOrganizerRepository(),
+            };
         }
         else {
             if (!this.postgresFactory) {
                 this.postgresFactory = new postgres_1.PostgresRepositoryFactory();
             }
-            return this.postgresFactory;
+            const factory = this.postgresFactory;
+            return {
+                getUserRepository: () => factory.getUserRepository(),
+                getArtistRepository: () => factory.getArtistRepository(),
+                getArenaRepository: () => factory.getArenaRepository(),
+                getConcertRepository: () => factory.getConcertRepository(),
+                getTicketRepository: () => factory.getTicketRepository(),
+                getOrganizerRepository: () => factory.getOrganizerRepository(),
+            };
         }
     }
     /**

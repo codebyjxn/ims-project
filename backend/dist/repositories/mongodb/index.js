@@ -13,6 +13,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MongoRepositoryFactory = exports.MongoConcertRepository = exports.MongoArenaRepository = exports.MongoArtistRepository = exports.MongoTicketRepository = exports.MongoUserRepository = void 0;
 const mongodb_connection_1 = require("../../lib/mongodb-connection");
+const organizer_1 = require("./organizer");
+const mongodb_1 = require("mongodb");
 class MongoUserRepository {
     findById(userId) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -499,15 +501,22 @@ exports.MongoArenaRepository = MongoArenaRepository;
 class MongoConcertRepository {
     findById(concertId) {
         return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const collection = yield mongodb_connection_1.mongoManager.getCollection('concerts');
-                const concert = yield collection.findOne({ _id: concertId });
-                return concert;
+            const collection = yield mongodb_connection_1.mongoManager.getCollection('concerts');
+            let concert = null;
+            // Try as ObjectId if possible
+            if (/^[a-fA-F0-9]{24}$/.test(concertId)) {
+                try {
+                    concert = yield collection.findOne({ _id: new mongodb_1.ObjectId(concertId) });
+                }
+                catch (e) {
+                    // Not a valid ObjectId, skip
+                }
             }
-            catch (error) {
-                console.error('Error in MongoConcertRepository.findById:', error);
-                return null;
+            // Fallback to string
+            if (!concert) {
+                concert = yield collection.findOne({ _id: concertId });
             }
+            return concert;
         });
     }
     findAll() {
@@ -532,6 +541,7 @@ class MongoConcertRepository {
                     {
                         $project: {
                             _id: 1,
+                            concert_id: { $toString: '$_id' },
                             concert_date: 1,
                             time: 1,
                             description: 1,
@@ -613,9 +623,51 @@ class MongoConcertRepository {
     create(concertData) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                // Prepare artists array as objects
+                let artists = [];
+                if (Array.isArray(concertData.artists) && concertData.artists.length > 0) {
+                    if (typeof concertData.artists[0] === 'string') {
+                        // Array of IDs, fetch full artist objects
+                        const artistIds = concertData.artists;
+                        const artistsCollection = yield mongodb_connection_1.mongoManager.getCollection('artists');
+                        const artistDocs = yield artistsCollection.find({ _id: { $in: artistIds } }).toArray();
+                        artists = artistDocs.map(artist => ({
+                            artist_id: artist._id,
+                            artist_name: artist.artist_name,
+                            genre: artist.genre
+                        }));
+                    }
+                    else if (typeof concertData.artists[0] === 'object') {
+                        // Already objects, but ensure correct shape
+                        artists = concertData.artists.map((artist) => ({
+                            artist_id: artist.artist_id || artist._id,
+                            artist_name: artist.artist_name,
+                            genre: artist.genre
+                        }));
+                    }
+                }
+                // Prepare zone_pricing array as objects with correct types
+                let zone_pricing = [];
+                if (Array.isArray(concertData.zone_pricing)) {
+                    zone_pricing = concertData.zone_pricing.map((zp) => ({
+                        zone_name: zp.zone_name,
+                        price: typeof zp.price === 'string' ? parseFloat(zp.price) : zp.price
+                    }));
+                }
+                // Build the concert document to insert
+                const concertDoc = {
+                    _id: concertData._id, // Should be a string (UUID) or ObjectId
+                    concert_date: new Date(concertData.concert_date),
+                    time: concertData.time,
+                    description: concertData.description,
+                    organizer_id: concertData.organizer_id,
+                    arena_id: concertData.arena_id,
+                    artists,
+                    zone_pricing
+                };
                 const collection = yield mongodb_connection_1.mongoManager.getCollection('concerts');
-                const result = yield collection.insertOne(concertData);
-                return Object.assign(Object.assign({}, concertData), { _id: result.insertedId });
+                const result = yield collection.insertOne(concertDoc);
+                return Object.assign(Object.assign({}, concertDoc), { _id: result.insertedId });
             }
             catch (error) {
                 console.error('Error in MongoConcertRepository.create:', error);
@@ -705,6 +757,7 @@ class MongoRepositoryFactory {
         this.arenaRepository = new MongoArenaRepository();
         this.concertRepository = new MongoConcertRepository();
         this.ticketRepository = new MongoTicketRepository();
+        this.organizerRepository = new organizer_1.MongoOrganizerRepository();
     }
     getUserRepository() {
         return this.userRepository;
@@ -720,6 +773,9 @@ class MongoRepositoryFactory {
     }
     getTicketRepository() {
         return this.ticketRepository;
+    }
+    getOrganizerRepository() {
+        return this.organizerRepository;
     }
 }
 exports.MongoRepositoryFactory = MongoRepositoryFactory;

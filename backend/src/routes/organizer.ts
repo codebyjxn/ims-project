@@ -68,18 +68,6 @@ router.put('/concerts/:concertId', ensureOrganizer, (req, res) => {
   organizerController.updateConcert(req, res);
 });
 
-// Delete concert
-// DELETE /api/organizer/concerts/:concertId  
-router.delete('/concerts/:concertId', ensureOrganizer, (req, res) => {
-  organizerController.deleteConcert(req, res);
-});
-
-// Get concert analytics
-// GET /api/organizer/concerts/:concertId/analytics
-router.get('/concerts/:concertId/analytics', ensureOrganizer, (req, res) => {
-  organizerController.getConcertAnalytics(req, res);
-});
-
 // Arena analytics for organizer
 router.get('/arenas/analytics', ensureOrganizer, (req, res) => {
   organizerController.getArenasAnalytics(req, res);

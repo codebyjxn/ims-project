@@ -54,8 +54,8 @@ class TicketService {
         });
     }
     
-    async purchaseTickets(data: TicketPurchaseData): Promise<{ message: string; ticketId: string; totalPrice: number }> {
-        return request<{ message: string; ticketId: string; totalPrice: number }>('/tickets/purchase', {
+    async purchaseTickets(data: TicketPurchaseData): Promise<any> {
+        return request<any>('/tickets/purchase', {
           method: 'POST',
           body: JSON.stringify(data),
         });

@@ -27,6 +27,7 @@ import concertService, { Concert } from '../services/api/concert';
 import referralService, { ReferralValidation } from '../services/api/referral';
 import { useAuth } from '../context/AuthContext';
 import Navigation from '../components/Navigation';
+import ticketService from '../services/api/ticket';
 
 // Updated interfaces to match our API
 interface TicketPurchaseData {
@@ -136,7 +137,7 @@ const ConcertDetailPage: React.FC = () => {
     // Extract user ID from the user object - handle multiple field names
     const fanId = user.id || (user as any).userId || (user as any).user_id;
     
-    const purchaseData: TicketPurchaseData = {
+    const purchaseData = {
       concertId: id,
       zoneId: selectedZone,
       quantity,
@@ -149,24 +150,10 @@ const ConcertDetailPage: React.FC = () => {
       setPurchasing(true);
       setPurchaseError(null);
 
-      // Make the purchase request directly to match our working API
-      const apiUrl = (window as any).env?.REACT_APP_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/tickets/purchase`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(purchaseData)
-      });
+      // Use the shared ticketService for purchase
+      const result = await ticketService.purchaseTickets(purchaseData);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Purchase failed');
-      }
-
-      if (result.success) {
+      if (result && result.success && result.tickets && result.tickets.length > 0) {
         setPurchaseSuccess(true);
         // Show success message with actual data from API
         setTimeout(() => {
@@ -174,7 +161,7 @@ const ConcertDetailPage: React.FC = () => {
           navigate('/dashboard');
         }, 2000);
       } else {
-        throw new Error(result.error || 'Purchase failed');
+        throw new Error('Purchase failed');
       }
       
     } catch (err) {
