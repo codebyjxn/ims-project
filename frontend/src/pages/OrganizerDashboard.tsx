@@ -39,7 +39,6 @@ const OrganizerDashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Add robust error handling for JSON parsing
       const [concertsData, statsData] = await Promise.all([
         fetchWithErrorHandling(() => organizerService.getOrganizerConcerts(user?.id)),
         fetchWithErrorHandling(() => organizerService.getOrganizerStats(user?.id))
@@ -55,7 +54,6 @@ const OrganizerDashboard: React.FC = () => {
     }
   };
 
-  // Robust error handling for API calls
   const fetchWithErrorHandling = async (apiCall: () => Promise<any>) => {
     try {
       return await apiCall();
@@ -146,7 +144,7 @@ const OrganizerDashboard: React.FC = () => {
           </Alert>
         )}
 
-        {/* Stats Cards - Clean Design */}
+
         {stats && (
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} sm={6} md={3}>
@@ -326,7 +324,6 @@ const OrganizerDashboard: React.FC = () => {
           </Grid>
         )}
 
-        {/* Floating Action Button Alternative - Clean Button */}
         <Box sx={{ position: 'fixed', bottom: 24, right: 24 }}>
           <Button
             variant="contained"

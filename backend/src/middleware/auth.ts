@@ -21,12 +21,14 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
+      res.status(401).json({ error: 'Access token required' });
+      return;
     }
 
     jwt.verify(token, config.jwt.secret, (err: any, decoded: any) => {
       if (err) {
-        return res.status(403).json({ error: 'Invalid or expired token' });
+        res.status(403).json({ error: 'Invalid or expired token' });
+        return;
       }
 
       req.user = {
@@ -46,7 +48,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 // Middleware to check if user is a fan
 export const isFan = (req: Request, res: Response, next: NextFunction) => {
   if (req.user?.userType !== 'fan') {
-    return res.status(403).json({ error: 'Access denied. Fans only.' });
+    res.status(403).json({ error: 'Access denied. Fans only.' });
+    return;
   }
   next();
 };
@@ -54,7 +57,8 @@ export const isFan = (req: Request, res: Response, next: NextFunction) => {
 // Middleware to check if user is an organizer
 export const isOrganizer = (req: Request, res: Response, next: NextFunction) => {
   if (req.user?.userType !== 'organizer') {
-    return res.status(403).json({ error: 'Access denied. Organizers only.' });
+    res.status(403).json({ error: 'Access denied. Organizers only.' });
+    return;
   }
   next();
 };
@@ -62,7 +66,8 @@ export const isOrganizer = (req: Request, res: Response, next: NextFunction) => 
 // Middleware to check if user is an admin
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
   if (req.user?.userType !== 'admin') {
-    return res.status(403).json({ error: 'Access denied. Admins only.' });
+    res.status(403).json({ error: 'Access denied. Admins only.' });
+    return;
   }
   next();
 }; 

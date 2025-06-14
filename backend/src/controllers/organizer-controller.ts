@@ -12,7 +12,7 @@ interface ZoneData {
 }
 
 export class OrganizerController {
-  // Get all concerts for an organizer
+
   async getOrganizerConcerts(req: Request, res: Response): Promise<void> {
     try {
       const { organizerId } = req.params;
@@ -72,13 +72,13 @@ export class OrganizerController {
         artists
       } = req.body;
 
-      // Validate required fields
+
       if (!organizerId || !title || !date || !time || !arenaId || !zones || !artists) {
         res.status(400).json({ error: 'Missing required fields' });
         return;
       }
 
-      // Use the service layer for both DBs
+
       const result = await OrganizerService.createConcert({
         organizerId,
         title,
@@ -106,11 +106,11 @@ export class OrganizerController {
       const currentDb = migrationStatus.getDatabaseType();
 
       if (currentDb === 'mongodb') {
-        // MongoDB implementation
+
         res.status(501).json({ error: 'MongoDB implementation pending' });
         return;
       } else {
-        // PostgreSQL implementation
+
         const pool = getPool();
         
         const query = `
@@ -149,7 +149,7 @@ export class OrganizerController {
 
         const concert = result.rows[0];
 
-        // Get artists for the concert
+
         const artistQuery = `
           SELECT ar.artist_name as name, ar.genre
           FROM concert_features_artists cfa
@@ -159,7 +159,7 @@ export class OrganizerController {
         const artistResult = await pool.query(artistQuery, [concertId]);
         concert.artists = artistResult.rows;
         
-        // Format the response
+
         concert.arena = {
           name: concert.arena_name,
           location: concert.arena_location,
@@ -178,7 +178,7 @@ export class OrganizerController {
     }
   }
 
-  // Update concert
+
   async updateConcert(req: Request, res: Response): Promise<void> {
     try {
       const { concertId } = req.params;
@@ -187,14 +187,14 @@ export class OrganizerController {
       const currentDb = migrationStatus.getDatabaseType();
 
       if (currentDb === 'mongodb') {
-        // MongoDB implementation
+
         res.status(501).json({ error: 'MongoDB implementation pending' });
         return;
       } else {
-        // PostgreSQL implementation
+
         const pool = getPool();
         
-        // Build dynamic update query
+
         const updateFields = [];
         const values = [];
         let paramIndex = 1;
@@ -229,7 +229,7 @@ export class OrganizerController {
     }
   }
 
-  // Arena analytics for organizer
+
   async getArenasAnalytics(req: Request, res: Response): Promise<void> {
     try {
       const organizerId = req.user?.userId || req.query.organizerId || req.body.organizerId;

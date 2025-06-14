@@ -73,12 +73,12 @@ class OrganizerController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const { organizerId, title, description, date, time, arenaId, zones, artists } = req.body;
-                // Validate required fields
+
                 if (!organizerId || !title || !date || !time || !arenaId || !zones || !artists) {
                     res.status(400).json({ error: 'Missing required fields' });
                     return;
                 }
-                // Use the service layer for both DBs
+
                 const result = yield organizer_service_1.OrganizerService.createConcert({
                     organizerId,
                     title,
@@ -107,12 +107,12 @@ class OrganizerController {
                 const { concertId } = req.params;
                 const currentDb = migration_status_1.migrationStatus.getDatabaseType();
                 if (currentDb === 'mongodb') {
-                    // MongoDB implementation
+
                     res.status(501).json({ error: 'MongoDB implementation pending' });
                     return;
                 }
                 else {
-                    // PostgreSQL implementation
+
                     const pool = (0, postgres_1.getPool)();
                     const query = `
           SELECT 
@@ -146,7 +146,7 @@ class OrganizerController {
                         return;
                     }
                     const concert = result.rows[0];
-                    // Get artists for the concert
+
                     const artistQuery = `
           SELECT ar.artist_name as name, ar.genre
           FROM concert_features_artists cfa
@@ -155,7 +155,7 @@ class OrganizerController {
         `;
                     const artistResult = yield pool.query(artistQuery, [concertId]);
                     concert.artists = artistResult.rows;
-                    // Format the response
+                    
                     concert.arena = {
                         name: concert.arena_name,
                         location: concert.arena_location,
@@ -173,7 +173,7 @@ class OrganizerController {
             }
         });
     }
-    // Update concert
+
     updateConcert(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -181,14 +181,14 @@ class OrganizerController {
                 const updates = req.body;
                 const currentDb = migration_status_1.migrationStatus.getDatabaseType();
                 if (currentDb === 'mongodb') {
-                    // MongoDB implementation
+
                     res.status(501).json({ error: 'MongoDB implementation pending' });
                     return;
                 }
                 else {
-                    // PostgreSQL implementation
+
                     const pool = (0, postgres_1.getPool)();
-                    // Build dynamic update query
+
                     const updateFields = [];
                     const values = [];
                     let paramIndex = 1;
@@ -220,7 +220,7 @@ class OrganizerController {
             }
         });
     }
-    // Arena analytics for organizer
+
     getArenasAnalytics(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             var _a;

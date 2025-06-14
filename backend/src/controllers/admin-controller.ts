@@ -303,4 +303,248 @@ export class AdminController {
       });
     }
   }
+
+  // Get organizers analytics report based on arena performance
+  async getOrganizersAnalytics(req: Request, res: Response): Promise<void> {
+    try {
+      const currentDb = migrationStatus.getDatabaseType();
+
+      if (currentDb === 'mongodb') {
+        // MongoDB implementation
+        const organizersAnalytics = await this.getOrganizersAnalyticsFromMongoDB();
+        res.json({
+          database: 'MongoDB',
+          analytics: organizersAnalytics,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        // PostgreSQL implementation  
+        const organizersAnalytics = await this.getOrganizersAnalyticsFromPostgreSQL();
+        res.json({
+          database: 'PostgreSQL',
+          analytics: organizersAnalytics,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching organizers analytics:', error);
+      res.status(500).json({
+        error: 'Failed to fetch organizers analytics',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  private async getOrganizersAnalyticsFromPostgreSQL(): Promise<any[]> {
+    const query = `
+      SELECT 
+        o.user_id AS org_id,
+        o.organization_name AS org_name,
+        o.contact_info AS contact,
+        a.arena_name AS arena,
+        a.arena_location AS location,
+        COUNT(DISTINCT c.concert_id) AS concerts,
+        COALESCE(SUM(t.purchase_price), 0) AS revenue,
+        COUNT(t.ticket_id) AS tickets,
+        COALESCE(AVG(t.purchase_price), 0) AS avg_price,
+        COALESCE(MIN(t.purchase_price), 0) AS min_price,
+        COALESCE(MAX(t.purchase_price), 0) AS max_price,
+        COUNT(DISTINCT t.fan_id) AS unique_fans,
+        CASE 
+          WHEN COUNT(DISTINCT c.concert_id) > 0 
+          THEN CAST(COUNT(t.ticket_id) AS FLOAT) / COUNT(DISTINCT c.concert_id)
+          ELSE 0 
+        END AS avg_tickets_per_concert
+      FROM organizers o
+      JOIN concerts c ON o.user_id = c.organizer_id
+      JOIN arenas a ON c.arena_id = a.arena_id
+      LEFT JOIN tickets t ON c.concert_id = t.concert_id
+      GROUP BY o.user_id, o.organization_name, o.contact_info, a.arena_name, a.arena_location
+      ORDER BY revenue DESC, concerts DESC
+    `;
+
+    const result = await getPool().query(query);
+    return result.rows.map(row => ({
+      orgId: row.org_id,
+      orgName: row.org_name,
+      contact: row.contact,
+      arena: row.arena,
+      location: row.location,
+      concerts: parseInt(row.concerts),
+      revenue: parseFloat(row.revenue) || 0,
+      tickets: parseInt(row.tickets) || 0,
+      avgPrice: parseFloat(row.avg_price) || 0,
+      minPrice: parseFloat(row.min_price) || 0,
+      maxPrice: parseFloat(row.max_price) || 0,
+      uniqueFans: parseInt(row.unique_fans) || 0,
+      avgTicketsPerConcert: parseFloat(row.avg_tickets_per_concert) || 0
+    }));
+  }
+
+  private async getOrganizersAnalyticsFromMongoDB(): Promise<any[]> {
+    try {
+      const usersCollection = getUsersCollection();
+      const concertsCollection = getConcertsCollection();
+      const arenasCollection = getArenasCollection();
+      const ticketsCollection = getTicketsCollection();
+
+      // Aggregate organizers analytics using MongoDB aggregation pipeline
+      const pipeline = [
+        // Match only organizer users
+        { $match: { user_type: 'organizer' } },
+        
+        // Lookup concerts for each organizer
+        {
+          $lookup: {
+            from: 'concerts',
+            localField: '_id',
+            foreignField: 'organizer_id',
+            as: 'concerts'
+          }
+        },
+        
+        // Unwind concerts to process each concert separately
+        { $unwind: { path: '$concerts', preserveNullAndEmptyArrays: true } },
+        
+        // Lookup arena details for each concert
+        {
+          $lookup: {
+            from: 'arenas',
+            localField: 'concerts.arena_id',
+            foreignField: '_id',
+            as: 'arena_details'
+          }
+        },
+        
+        // Unwind arena details
+        { $unwind: { path: '$arena_details', preserveNullAndEmptyArrays: true } },
+        
+        // Lookup tickets for each concert
+        {
+          $lookup: {
+            from: 'tickets',
+            localField: 'concerts._id',
+            foreignField: 'concert_id',
+            as: 'tickets'
+          }
+        },
+        
+        // Unwind tickets to calculate metrics
+        { $unwind: { path: '$tickets', preserveNullAndEmptyArrays: true } },
+        
+        // Group by organizer and arena to match the PostgreSQL query structure
+        {
+          $group: {
+            _id: {
+              orgId: '$_id',
+              orgName: '$organizer_details.organization_name',
+              contact: '$organizer_details.contact_info',
+              arena: '$arena_details.arena_name',
+              location: '$arena_details.arena_location'
+            },
+            concerts: { $addToSet: '$concerts._id' },
+            revenue: { 
+              $sum: { 
+                $toDouble: { 
+                  $ifNull: [
+                    { $ifNull: ['$tickets.purchase_price', '$tickets.price'] }, 
+                    0
+                  ] 
+                } 
+              } 
+            },
+            tickets: { $sum: { $cond: [{ $ifNull: ['$tickets._id', false] }, 1, 0] } },
+            prices: { 
+              $push: { 
+                $toDouble: { 
+                  $ifNull: [
+                    { $ifNull: ['$tickets.purchase_price', '$tickets.price'] }, 
+                    null
+                  ] 
+                } 
+              } 
+            },
+            uniqueFans: { $addToSet: '$tickets.fan_id' }
+          }
+        },
+        
+        // Filter out groups with null arena (organizers with no concerts)
+        { $match: { '_id.arena': { $ne: null } } },
+        
+        // Project final analytics structure
+        {
+          $project: {
+            orgId: '$_id.orgId',
+            orgName: '$_id.orgName',
+            contact: '$_id.contact',
+            arena: '$_id.arena',
+            location: '$_id.location',
+            concerts: { 
+              $size: { 
+                $filter: { 
+                  input: '$concerts', 
+                  cond: { $ne: ['$$this', null] } 
+                } 
+              } 
+            },
+            revenue: 1,
+            tickets: 1,
+            avgPrice: {
+              $cond: [
+                { $gt: ['$tickets', 0] },
+                { $divide: ['$revenue', '$tickets'] },
+                0
+              ]
+            },
+            minPrice: {
+              $cond: [
+                { $gt: [{ $size: { $filter: { input: '$prices', cond: { $and: [{ $ne: ['$$this', null] }, { $gt: ['$$this', 0] }] } } } }, 0] },
+                { $min: { $filter: { input: '$prices', cond: { $and: [{ $ne: ['$$this', null] }, { $gt: ['$$this', 0] }] } } } },
+                0
+              ]
+            },
+            maxPrice: {
+              $cond: [
+                { $gt: [{ $size: { $filter: { input: '$prices', cond: { $and: [{ $ne: ['$$this', null] }, { $gt: ['$$this', 0] }] } } } }, 0] },
+                { $max: { $filter: { input: '$prices', cond: { $and: [{ $ne: ['$$this', null] }, { $gt: ['$$this', 0] }] } } } },
+                0
+              ]
+            },
+            uniqueFans: { $size: { $filter: { input: '$uniqueFans', cond: { $ne: ['$$this', null] } } } },
+            avgTicketsPerConcert: {
+              $cond: [
+                { $gt: [{ $size: { $filter: { input: '$concerts', cond: { $ne: ['$$this', null] } } } }, 0] },
+                { $divide: ['$tickets', { $size: { $filter: { input: '$concerts', cond: { $ne: ['$$this', null] } } } }] },
+                0
+              ]
+            }
+          }
+        },
+        
+        // Sort by revenue descending, then by concerts descending
+        { $sort: { revenue: -1, concerts: -1 } }
+      ];
+
+      const results = await usersCollection.aggregate(pipeline).toArray();
+      
+      return results.map(result => ({
+        orgId: result.orgId,
+        orgName: result.orgName || 'Unknown Organization',
+        contact: result.contact || 'No contact info',
+        arena: result.arena || 'No arena',
+        location: result.location || 'Unknown location',
+        concerts: result.concerts || 0,
+        revenue: result.revenue || 0,
+        tickets: result.tickets || 0,
+        avgPrice: result.avgPrice || 0,
+        minPrice: result.minPrice || 0,
+        maxPrice: result.maxPrice || 0,
+        uniqueFans: result.uniqueFans || 0,
+        avgTicketsPerConcert: result.avgTicketsPerConcert || 0
+      }));
+    } catch (error) {
+      console.error('MongoDB organizers analytics error:', error);
+      throw error;
+    }
+  }
 } 

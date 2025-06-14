@@ -24,4 +24,9 @@ router.get('/health', async (req, res) => {
   await adminController.healthCheck(req, res);
 });
 
+// Get organizers analytics report
+router.get('/organizers-analytics', async (req, res) => {
+  await adminController.getOrganizersAnalytics(req, res);
+});
+
 export default router; 

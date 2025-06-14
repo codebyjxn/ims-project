@@ -174,17 +174,24 @@ const AdminPanel: React.FC = () => {
               <h3>Analytics</h3>
                     </div>
             <div className="card-content">
-              <p>View detailed reports on concert performance and ticket sales.</p>
+              <p>View detailed reports on concert performance and organizer analytics.</p>
+              <div className="button-group">
+                <button 
+                  onClick={() => navigate('/admin/analytics')}
+                  className="action-button"
+                >
+                  Concert Analytics Report
+                  <ArrowRightLeft className="icon" />
+                </button>
+                <button 
+                  onClick={() => navigate('/admin/organizers-analytics')}
+                  className="action-button"
+                >
+                  Organizers Analytics Report
+                  <BarChart3 className="icon" />
+                </button>
+              </div>
                       </div>
-            <div className="card-footer">
-          <button 
-                onClick={() => navigate('/admin/analytics')}
-                className="action-button"
-              >
-                Go to Analytics Report
-                <ArrowRightLeft className="icon" />
-          </button>
-                  </div>
           </div>
         </div>
       </main>
