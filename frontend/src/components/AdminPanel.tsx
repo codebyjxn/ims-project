@@ -15,7 +15,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import adminService from '../services/api/admin';
-import './AdminPanel.css';
+import {
+  Box,
+  Button,
+  Typography,
+  Container,
+  Card,
+  CardContent,
+  CardHeader,
+  CardActions,
+  IconButton,
+  Chip,
+  Grid,
+  Paper,
+} from '@mui/material';
 
 interface HealthStatus {
   status: string;
@@ -97,98 +110,254 @@ const AdminPanel: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
+    const iconProps = { size: 20 };
     switch (status) {
-      case 'online': return <CheckCircle className="status-icon online" />;
-      case 'offline': return <XCircle className="status-icon offline" />;
-      case 'warning': return <AlertCircle className="status-icon warning" />;
-      default: return <RefreshCw className="status-icon checking animate-spin" />;
+      case 'online': return <CheckCircle {...iconProps} style={{ color: '#22c55e' }} />;
+      case 'offline': return <XCircle {...iconProps} style={{ color: '#ef4444' }} />;
+      case 'warning': return <AlertCircle {...iconProps} style={{ color: '#f97316' }} />;
+      default: return <RefreshCw {...iconProps} style={{ color: '#3b82f6', animation: 'spin 1s linear infinite' }} />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return '#22c55e';
+      case 'offline': return '#ef4444';
+      case 'warning': return '#f97316';
+      default: return '#3b82f6';
     }
   };
 
   return (
-    <div className="admin-panel">
-      <header className="header">
-        <div className="header-content">
-          <div className="header-title">
-            <p className="subtitle">Admin Dashboard</p>
-            <h1 className="title">System Management</h1>
-          </div>
-          <div className="header-actions">
-            <div className="user-info">
-              <User className="icon" />
-              <span>{user?.email}</span>
-            </div>
-            <button onClick={logout} className="action-button">
-              <LogOut className="icon" />
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100vh', 
+      backgroundColor: '#f0f4f8', 
+      color: '#334155' 
+    }}>
+      <Paper sx={{ 
+        backgroundColor: '#f0f4f8', 
+        padding: '1rem 2rem', 
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', 
+        zIndex: 10,
+        borderRadius: 0
+      }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          maxWidth: '1400px', 
+          margin: '0 auto' 
+        }}>
+          <Box>
+            <Typography variant="body2" sx={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>
+              Admin Dashboard
+            </Typography>
+            <Typography variant="h4" sx={{ fontSize: '1.75rem', fontWeight: 700, marginTop: '0.25rem', color: '#1e293b' }}>
+              System Management
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500, color: '#334155' }}>
+              <User size={18} />
+              <Typography>{user?.email}</Typography>
+            </Box>
+            <Button 
+              onClick={logout} 
+              startIcon={<LogOut size={18} />}
+              sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                fontWeight: 500,
+                '&:hover': { backgroundColor: '#2563eb' }
+              }}
+            >
               Logout
-            </button>
-          </div>
-        </div>
-      <div className="status-bar">
-        <div className={`status-item ${apiStatus}`}>
-          {getStatusIcon(apiStatus)}
-            <span>API Status: {apiStatus}</span>
-        </div>
-        <div className={`status-item ${dbStatus}`}>
-          {getStatusIcon(dbStatus)}
-            <span>Database Status: {dbStatus}</span>
-          </div>
-          <button onClick={checkSystemStatus} disabled={loading === 'health'} className="refresh-button">
-              <RefreshCw size={16} className={loading === 'health' ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </header>
-      <main className="main-content">
-        <div className="grid">
-          {/* System Actions */}
-          <div className="card">
-            <div className="card-header">
-              <Database className="icon" />
-              <h3>Database Actions</h3>
-      </div>
-            <div className="card-content">
-              <p>Use these actions to manage the database state.</p>
-          <div className="button-group">
-            <button 
-              onClick={seedDatabase}
-              disabled={loading === 'seed'}
-                  className="action-button"
-            >
-                  {loading === 'seed' ? 'Seeding...' : 'Seed Database'}
-            </button>
-            <button 
-              onClick={migrateToNoSQL}
-              disabled={loading === 'migrate'}
-                  className="action-button"
-            >
-                  {loading === 'migrate' ? 'Migrating...' : 'Migrate to NoSQL'}
-            </button>
-          </div>
-          </div>
-        </div>
+            </Button>
+          </Box>
+        </Box>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: '2rem', 
+          alignItems: 'center', 
+          maxWidth: '1400px', 
+          margin: '1rem auto 0', 
+          paddingTop: '1rem', 
+          borderTop: '1px solid #e2e8f0' 
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500, color: '#334155' }}>
+            {getStatusIcon(apiStatus)}
+            <Typography>API Status: {apiStatus}</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500, color: '#334155' }}>
+            {getStatusIcon(dbStatus)}
+            <Typography>Database Status: {dbStatus}</Typography>
+          </Box>
+          <IconButton 
+            onClick={checkSystemStatus} 
+            disabled={loading === 'health'}
+            sx={{ 
+              border: '1px solid #e2e8f0', 
+              borderRadius: '50%', 
+              padding: '0.5rem' 
+            }}
+          >
+            <RefreshCw size={16} style={{ 
+              animation: loading === 'health' ? 'spin 1s linear infinite' : 'none' 
+            }} />
+          </IconButton>
+        </Box>
+      </Paper>
+      
+      <Box sx={{ flexGrow: 1, padding: '2rem', overflowY: 'auto' }}>
+        <Grid container spacing={4} sx={{ maxWidth: '1400px', margin: '0 auto' }}>
+          {/* Database Actions Card */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ 
+              backgroundColor: '#f0f4f8', 
+              borderRadius: '12px', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)', 
+              display: 'flex', 
+              flexDirection: 'column',
+              height: '100%'
+            }}>
+              <CardHeader 
+                avatar={<Database size={24} style={{ color: '#3b82f6' }} />}
+                title={
+                  <Typography variant="h6" sx={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b' }}>
+                    Database Actions
+                  </Typography>
+                }
+                sx={{ 
+                  padding: '1.5rem', 
+                  borderBottom: '1px solid #e2e8f0' 
+                }}
+              />
+              <CardContent sx={{ padding: '1.5rem', flexGrow: 1 }}>
+                <Typography sx={{ color: '#334155' }}>
+                  Use these actions to manage the database state.
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                  <Button 
+                    onClick={seedDatabase}
+                    disabled={loading === 'seed'}
+                    variant="contained"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1.5rem',
+                      borderRadius: '8px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      '&:hover': { backgroundColor: '#2563eb' },
+                      '&:disabled': { opacity: 0.7 }
+                    }}
+                  >
+                    {loading === 'seed' ? 'Seeding...' : 'Seed Database'}
+                  </Button>
+                  <Button 
+                    onClick={migrateToNoSQL}
+                    disabled={loading === 'migrate'}
+                    variant="contained"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1.5rem',
+                      borderRadius: '8px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      '&:hover': { backgroundColor: '#2563eb' },
+                      '&:disabled': { opacity: 0.7 }
+                    }}
+                  >
+                    {loading === 'migrate' ? 'Migrating...' : 'Migrate to NoSQL'}
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
 
-          {/* Analytics Report Navigation */}
-        <div className="card">
-            <div className="card-header">
-              <BarChart3 className="icon" />
-              <h3>Analytics</h3>
-                    </div>
-            <div className="card-content">
-              <p>View detailed reports on concert performance and ticket sales.</p>
-                      </div>
-            <div className="card-footer">
-          <button 
-                onClick={() => navigate('/admin/analytics')}
-                className="action-button"
-              >
-                Go to Analytics Report
-                <ArrowRightLeft className="icon" />
-          </button>
-                  </div>
-          </div>
-        </div>
-      </main>
-    </div>
+          {/* Analytics Card */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ 
+              backgroundColor: '#f0f4f8', 
+              borderRadius: '12px', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)', 
+              display: 'flex', 
+              flexDirection: 'column',
+              height: '100%'
+            }}>
+              <CardHeader 
+                avatar={<BarChart3 size={24} style={{ color: '#3b82f6' }} />}
+                title={
+                  <Typography variant="h6" sx={{ fontSize: '1.25rem', fontWeight: 600, color: '#1e293b' }}>
+                    Analytics
+                  </Typography>
+                }
+                sx={{ 
+                  padding: '1.5rem', 
+                  borderBottom: '1px solid #e2e8f0' 
+                }}
+              />
+              <CardContent sx={{ padding: '1.5rem', flexGrow: 1 }}>
+                <Typography sx={{ color: '#334155' }}>
+                  View detailed reports on concert performance and ticket sales.
+                </Typography>
+              </CardContent>
+              <CardActions sx={{ 
+                padding: '1.5rem', 
+                borderTop: '1px solid #e2e8f0', 
+                backgroundColor: '#f8fafc' 
+              }}>
+                <Button 
+                  onClick={() => navigate('/admin/analytics')}
+                  endIcon={<ArrowRightLeft size={18} />}
+                  variant="contained"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '8px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    '&:hover': { backgroundColor: '#2563eb' }
+                  }}
+                >
+                  Go to Analytics Report
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </Box>
   );
 };
 
