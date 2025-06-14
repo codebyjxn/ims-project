@@ -252,13 +252,6 @@ const OrganizerDashboard: React.FC = () => {
               >
                 View Analytics
               </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/organizers/arenas')}
-                sx={{ borderRadius: 2, textTransform: 'none' }}
-              >
-                Manage Arenas
-              </Button>
             </Box>
           </CardContent>
         </Card>
