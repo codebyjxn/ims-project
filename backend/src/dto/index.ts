@@ -130,7 +130,7 @@ export interface ReferralValidationResult {
 // ========== ORGANIZER DTOs ========== 
 export interface OrganizerConcertDTO {
   concert_id: string;
-  title: string;
+  description: string;
   date: string;
   time: string;
   arena: {

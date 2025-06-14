@@ -8,9 +8,9 @@ export class OrganizerService {
     const concerts = await organizerRepo.findConcertsByOrganizer(organizerId);
     return concerts.map((concert: any) => ({
       concert_id: concert.concert_id,
-      title: concert.title,
-      date: concert.date,
+      date: concert.concert_date,
       time: concert.time,
+      description: concert.description,
       arena: {
         name: concert.arena_name || (concert.arena && concert.arena.name),
         location: concert.arena_location || (concert.arena && concert.arena.location),
@@ -77,5 +77,28 @@ export class OrganizerService {
     const factory = RepositoryFactory.getFactory();
     const organizerRepo = factory.getOrganizerRepository();
     return await organizerRepo.getArenasAnalytics(organizerId);
+  }
+
+  static async getAvailableArenas(date: string): Promise<any[]> {
+    const factory = RepositoryFactory.getFactory();
+    const organizerRepo = factory.getOrganizerRepository();
+    const concertRepo = factory.getConcertRepository();
+    
+    // Get all arenas
+    const allArenas = await organizerRepo.getArenas();
+    
+    const concertDate = new Date(date);
+    const concertsOnDate = await concertRepo.findByDate(concertDate);
+    
+    // Get arena IDs that are already booked on this date
+    const bookedArenaIds = concertsOnDate.map(concert => concert.arena_id);
+    
+    // Filter out arenas
+    const availableArenas = allArenas.filter(arena => {
+      const arenaId = arena.arena_id;
+      return !bookedArenaIds.includes(arenaId);
+    });
+    
+    return availableArenas;
   }
 } 
