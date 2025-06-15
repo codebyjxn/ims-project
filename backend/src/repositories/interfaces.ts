@@ -45,6 +45,7 @@ export interface IConcertRepository {
   delete(concertId: string): Promise<boolean>;
   findZonePricing(concertId: string, arenaId: string, zoneName: string): Promise<any | null>;
   findAvailableTickets(concertId: string, zoneName: string): Promise<number>;
+  findUpcoming?(): Promise<any[]>;
 }
 
 export interface ITicketRepository {

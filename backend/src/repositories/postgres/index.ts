@@ -538,6 +538,32 @@ export class PostgresConcertRepository implements IConcertRepository {
     const sold = parseInt(soldResult.rows[0].sold);
     return capacity - sold;
   }
+
+  async findUpcoming(): Promise<any[]> {
+    const result = await this.pool.query(`
+      SELECT
+        c.concert_id,
+        c.concert_date,
+        c.time,
+        c.description,
+        c.arena_id,
+        a.arena_name,
+        a.arena_location,
+        org.organization_name,
+        json_agg(DISTINCT jsonb_build_object('artist_id', art.artist_id, 'artist_name', art.artist_name, 'genre', art.genre)) as artists,
+        json_agg(DISTINCT jsonb_build_object('zone_name', czp.zone_name, 'price', czp.price)) as zone_pricing
+      FROM concerts c
+      LEFT JOIN arenas a ON c.arena_id = a.arena_id
+      LEFT JOIN organizers org ON c.organizer_id = org.user_id
+      LEFT JOIN concert_features_artists cfa ON c.concert_id = cfa.concert_id
+      LEFT JOIN artists art ON cfa.artist_id = art.artist_id
+      LEFT JOIN concert_zone_pricing czp ON c.concert_id = czp.concert_id
+      WHERE c.concert_date > CURRENT_DATE
+      GROUP BY c.concert_id, a.arena_id, org.user_id
+      ORDER BY c.concert_date;
+    `);
+    return result.rows;
+  }
 }
 
 export class PostgresTicketRepository implements ITicketRepository {

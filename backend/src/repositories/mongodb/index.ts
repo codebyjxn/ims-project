@@ -710,6 +710,49 @@ export class MongoConcertRepository implements IConcertRepository {
       return 0;
     }
   }
+
+  async findUpcoming(): Promise<any[]> {
+    try {
+      const collection = await mongoManager.getCollection<IConcert>('concerts');
+      const now = new Date();
+      const concerts = await collection.aggregate([
+        { $match: { concert_date: { $gt: now } } },
+        {
+          $lookup: {
+            from: 'arenas',
+            localField: 'arena_id',
+            foreignField: '_id',
+            as: 'arena'
+          }
+        },
+        {
+          $unwind: {
+            path: '$arena',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            concert_id: { $toString: '$_id' },
+            concert_date: 1,
+            time: 1,
+            description: 1,
+            organizer_id: 1,
+            arena_id: 1,
+            artists: 1,
+            zone_pricing: 1,
+            arena_name: '$arena.arena_name',
+            arena_location: '$arena.arena_location'
+          }
+        }
+      ]).toArray();
+      return concerts;
+    } catch (error) {
+      console.error('Error in MongoConcertRepository.findUpcoming:', error);
+      return [];
+    }
+  }
 }
 
 export class MongoRepositoryFactory implements IRepositoryFactory {

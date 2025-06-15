@@ -374,15 +374,25 @@ const seedConcerts = async (organizers: Organizer[], arenas: Arena[]): Promise<C
     const organizer = faker.helpers.arrayElement(organizers);
     const arena = faker.helpers.arrayElement(arenas);
     
-    // FIX: Ensure concert date is always at least one day in the future.
+    // About half past, half future
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // Set the date to tomorrow
-    const nextYear = new Date();
-    nextYear.setFullYear(today.getFullYear() + 1); // Set to one year from today
-    
-    const concertDate = faker.date.between({ from: tomorrow, to: nextYear });
-    
+    let concertDate;
+    if (i < 15) {
+      // Past: from 1 year ago to yesterday
+      const lastYear = new Date(today);
+      lastYear.setFullYear(today.getFullYear() - 1);
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      concertDate = faker.date.between({ from: lastYear, to: yesterday });
+    } else {
+      // Future: from tomorrow to 1 year from now
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const nextYear = new Date(today);
+      nextYear.setFullYear(today.getFullYear() + 1);
+      concertDate = faker.date.between({ from: tomorrow, to: nextYear });
+    }
+
     const concert = {
       concert_id: faker.string.uuid(),
       organizer_id: organizer.user_id,

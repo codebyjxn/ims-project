@@ -82,14 +82,8 @@ export class ConcertService {
     const concertRepo = factory.getConcertRepository();
     const arenaRepo = factory.getArenaRepository();
     
-    const allConcerts = await concertRepo.findAll();
-    const now = new Date();
-    
-    // Filter for upcoming concerts
-    let upcomingConcerts = allConcerts.filter((concert: any) => {
-      const concertDate = new Date(concert.concert_date);
-      return concertDate > now;
-    });
+    // Always use DB-level filtering for upcoming concerts
+    let upcomingConcerts = await concertRepo.findUpcoming!();
 
     // Filter by genre if specified
     if (genre) {

@@ -30,7 +30,7 @@ const ConcertsPage: React.FC = () => {
     setError(null);
     
     try {
-      const response = await concertService.getAllConcerts(50); // Get up to 50 concerts
+      const response = await concertService.getUpcomingConcerts(50); // Get up to 50 upcoming concerts
       setConcerts(response);
     } catch (err) {
       setError('Failed to load concerts. Please try again.');

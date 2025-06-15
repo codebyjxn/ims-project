@@ -127,20 +127,4 @@ CREATE INDEX idx_concerts_date ON concerts(concert_date);
 -- Index for faster price lookups
 CREATE INDEX idx_concert_zone_pricing ON concert_zone_pricing(concert_id, arena_id);
 
--- Trigger to ensure concert dates are in the future
-CREATE OR REPLACE FUNCTION check_concert_date()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.concert_date <= CURRENT_DATE THEN
-        RAISE EXCEPTION 'Concert date must be in the future';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER ensure_future_concert_date
-BEFORE INSERT OR UPDATE ON concerts
-FOR EACH ROW
-EXECUTE FUNCTION check_concert_date();
-
 
