@@ -184,7 +184,7 @@ const LandingPage: React.FC = () => {
               <StyledButton
                 variant="outlined"
                 size="large"
-                onClick={() => navigate('/organizer')}
+                onClick={() => navigate('/organizers')}
                 sx={{
                   borderColor: 'white',
                   color: 'white',
