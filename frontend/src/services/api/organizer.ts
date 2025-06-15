@@ -37,6 +37,10 @@ export interface OrganizerConcert {
     ticketsSold: number;
     totalRevenue: number;
     status: 'upcoming' | 'ongoing' | 'completed';
+    zone_pricing: {
+      zone_name: string;
+      price: number;
+    }[];
 }
   
 export interface OrganizerStats {
@@ -83,6 +87,7 @@ class OrganizerService {
           ticketsSold: concert.tickets_sold ?? concert.ticketsSold ?? 0,
           totalRevenue: concert.total_revenue ?? concert.totalRevenue ?? 0,
           status: concert.status,
+          zone_pricing: concert.zone_pricing || [],
         }));
     }
     

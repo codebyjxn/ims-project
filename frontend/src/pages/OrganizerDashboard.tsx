@@ -12,6 +12,7 @@ import {
   Alert,
   Divider
 } from '@mui/material';
+import { Event as CalendarIcon, LocationOn as LocationOnIcon, People as PeopleIcon } from '@mui/icons-material';
 import organizerService, { OrganizerConcert, OrganizerStats } from '../services/api/organizer';
 import { useAuth } from '../context/AuthContext';
 import ConcertCreationWizard from '../components/ConcertCreationWizard';
@@ -293,44 +294,58 @@ const OrganizerDashboard: React.FC = () => {
                     transition: 'box-shadow 0.3s ease'
                   }}
                 >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Typography variant="h6" component="h3" sx={{ flexGrow: 1, fontWeight: 600 }}>
-                        {concert.description}
-                      </Typography>
-                      <Chip 
-                        label={concert.status} 
-                        color={getStatusColor(concert.status) as any}
-                        size="small"
-                      />
-                    </Box>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      📅 {formatDate(concert.date)} at {formatTime(concert.time)}
-                    </Typography>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      📍 {concert.arena.name}, {concert.arena.location}
-                    </Typography>
-
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      👥 {concert.ticketsSold} / {concert.arena.capacity} tickets sold
-                    </Typography>
-
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Artists:
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {concert.artists.map((artist, index) => (
-                          <Chip
-                            key={index}
-                            label={artist.artist_name}
-                            size="small"
-                            variant="outlined"
-                          />
-                        ))}
+                  <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                        <Typography variant="h6" component="h3" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                          {concert.description}
+                        </Typography>
                       </Box>
+
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                        <CalendarIcon sx={{ fontSize: '1.1rem', mr: 1, color: 'text.secondary' }} /> {formatDate(concert.date)} at {formatTime(concert.time)}
+                      </Typography>
+
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                        <LocationOnIcon sx={{ fontSize: '1.1rem', mr: 1, color: 'text.secondary' }} /> {concert.arena.name}, {concert.arena.location}
+                      </Typography>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Zone Pricing:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {(concert.zone_pricing || []).map((zone, index) => (
+                            <Chip
+                              key={index}
+                              label={`${zone.zone_name}: ${formatCurrency(zone.price)}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{ backgroundColor: '#e3f2fd', color: '#1565c0', border: '1px solid #90caf9' }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ mt: 2, mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Artists:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {concert.artists.map((artist, index) => (
+                            <Chip
+                              key={index}
+                              label={artist.artist_name}
+                              size="small"
+                              variant="outlined"
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+
+                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                        <PeopleIcon sx={{ fontSize: '1.1rem', mr: 1, color: 'text.secondary' }} /> {concert.ticketsSold} / {concert.arena.capacity} tickets sold
+                      </Typography>
                     </Box>
 
                     <Divider sx={{ my: 2 }} />

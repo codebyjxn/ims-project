@@ -68,6 +68,7 @@ export interface ConcertDTO {
   arena_id: string;
   artists: ConcertArtistDTO[];
   zone_pricing: ZonePricingDTO[];
+  status: string;
 }
 
 export interface ArenaDTO {
@@ -143,6 +144,7 @@ export interface OrganizerConcertDTO {
   total_revenue: number;
   status: string;
   artists: ArtistDTO[];
+  zone_pricing: ZonePricingDTO[];
 }
 
 export interface OrganizerStatsDTO {
