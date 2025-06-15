@@ -403,34 +403,39 @@ class MongoDBAdapter implements DatabaseAdapter {
 
   async getUsers(): Promise<DatabaseResult> {
     const db = await mongoManager.getDatabase();
-    const data = await (await getUsersCollection()).find({}).sort({ registration_date: -1 }).toArray();
+    const usersCollection = await getUsersCollection();
+    const data = await usersCollection.find({}).sort({ registration_date: -1 }).toArray();
     return { data };
   }
 
   async getUserById(id: string): Promise<DatabaseResult> {
     const db = await mongoManager.getDatabase();
-    const data = await (await getUsersCollection()).find({ _id: id }).toArray();
+    const usersCollection = await getUsersCollection();
+    const data = await usersCollection.find({ _id: id }).toArray();
     return { data };
   }
 
   async createUser(user: any): Promise<DatabaseResult> {
     const db = await mongoManager.getDatabase();
-    const result = await (await getUsersCollection()).insertOne(user);
-    const data = await (await getUsersCollection()).find({ _id: result.insertedId }).toArray();
+    const usersCollection = await getUsersCollection();
+    const result = await usersCollection.insertOne(user);
+    const data = await usersCollection.find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
   async updateUser(id: string, updates: any): Promise<DatabaseResult> {
     const db = await mongoManager.getDatabase();
-    await (await getUsersCollection()).updateOne({ _id: id }, { $set: updates });
-    const data = await (await getUsersCollection()).find({ _id: id }).toArray();
+    const usersCollection = await getUsersCollection();
+    await usersCollection.updateOne({ _id: id }, { $set: updates });
+    const data = await usersCollection.find({ _id: id }).toArray();
     return { data };
   }
 
   async deleteUser(id: string): Promise<DatabaseResult> {
     const db = await mongoManager.getDatabase();
-    const data = await (await getUsersCollection()).find({ _id: id }).toArray();
-    await (await getUsersCollection()).deleteOne({ _id: id });
+    const usersCollection = await getUsersCollection();
+    const data = await usersCollection.find({ _id: id }).toArray();
+    await usersCollection.deleteOne({ _id: id });
     return { data };
   }
 

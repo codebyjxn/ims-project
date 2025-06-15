@@ -44,7 +44,7 @@ export class ConcertController {
       
       if (genre) {
         filteredConcerts = filteredConcerts.filter(concert => {
-          return Array.isArray(concert.artists) && concert.artists.some(artist => 
+          return Array.isArray(concert.artists) && concert.artists.some((artist: any) => 
             artist.genre?.toLowerCase().includes((genre as string).toLowerCase())
           );
         });

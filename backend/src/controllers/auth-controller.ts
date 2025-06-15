@@ -39,7 +39,7 @@ export class AuthController {
       let existingUser;
 
       if (currentDb === 'mongodb') {
-        const usersCollection = getUsersCollection();
+        const usersCollection = await getUsersCollection();
         existingUser = await usersCollection.findOne({ email });
       } else {
         const pool = getPool();
@@ -58,7 +58,7 @@ export class AuthController {
       let newUser: any;
 
       if (currentDb === 'mongodb') {
-        const usersCollection = getUsersCollection();
+        const usersCollection = await getUsersCollection();
 
         newUser = {
           _id: userId,

@@ -33,13 +33,30 @@ export class ConcertService {
   /**
    * Get all concerts with proper DTO mapping
    */
-  static async getAllConcerts(): Promise<ConcertDTO[]> {
+  static async getAllConcerts(): Promise<any[]> {
     try {
       const factory = RepositoryFactory.getFactory();
       const concertRepo = factory.getConcertRepository();
-      
+      const arenaRepo = factory.getArenaRepository();
+
       const concerts = await concertRepo.findAll();
-      return concerts.map(concert => this.mapToConcertDTO(concert));
+      const arenas = await arenaRepo.findAll();
+
+      // Build a map of arena_id to arena details
+      const arenaMap = Object.fromEntries(
+        arenas.map((arena: any) => [arena.arena_id || arena._id, this.mapToArenaDTO(arena)])
+      );
+
+      // Attach arena details to each concert
+      return concerts.map(concert => {
+        const concertDTO = this.mapToConcertDTO(concert);
+        const arena = arenaMap[concert.arena_id];
+        return {
+          ...concertDTO,
+          arena,
+          arena_capacity: arena?.total_capacity
+        };
+      });
     } catch (error) {
       console.error('Error in ConcertService.getAllConcerts:', error);
       return [];
