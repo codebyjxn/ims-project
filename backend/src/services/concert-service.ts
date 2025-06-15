@@ -264,7 +264,8 @@ export class ConcertService {
       zone_pricing: (concert.zone_pricing || []).map((pricing: any) => ({
         zone_name: pricing.zone_name,
         price: pricing.price
-      }))
+      })),
+      status: concert.status || 'upcoming'
     };
   }
 
