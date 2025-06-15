@@ -6,7 +6,7 @@ import ConcertsPage from './pages/ConcertsPage';
 import ConcertDetailPage from './pages/ConcertDetailPage';
 import UserDashboard from './pages/UserDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
-import OrganizerAnalytics from './pages/OrganizerAnalytics';
+
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import AdminPanel from './components/AdminPanel';
@@ -131,14 +131,7 @@ function App() {
               </OrganizerRoute>
             } 
           />
-          <Route 
-            path="/organizers/analytics" 
-            element={
-              <OrganizerRoute>
-                <OrganizerAnalytics />
-              </OrganizerRoute>
-            } 
-          />
+
           <Route 
             path="/admin" 
             element={
