@@ -30,7 +30,7 @@ const ConcertsPage: React.FC = () => {
     setError(null);
     
     try {
-      const response = await concertService.getUpcomingConcerts();
+      const response = await concertService.getAllConcerts(50); // Get up to 50 concerts
       setConcerts(response);
     } catch (err) {
       setError('Failed to load concerts. Please try again.');
@@ -99,7 +99,7 @@ const ConcertsPage: React.FC = () => {
           ConcertGo
         </Typography>
         <Typography variant="h6" gutterBottom sx={{ color: 'rgba(255,255,255,0.7)' }}>
-          Discover amazing live music experiences
+          Discover amazing live music experiences from all organizers
         </Typography>
       </Box>
 
@@ -171,8 +171,29 @@ const ConcertsPage: React.FC = () => {
                       mb: 2
                     }}
                   >
-                    {concert.concert_name || `Concert at ${concert.arena?.arena_name}` || 'Concert'}
+                    {concert.description 
+                      ? concert.description.split('.')[0].substring(0, 60) + (concert.description.length > 60 ? '...' : '')
+                      : `Concert at ${concert.arena?.arena_name || 'TBD'}`
+                    }
                   </Typography>
+
+                  {/* Concert Description */}
+                  {concert.description && (
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: 'rgba(255,255,255,0.8)', 
+                        mb: 2,
+                        fontStyle: 'italic',
+                        lineHeight: 1.4
+                      }}
+                    >
+                      {concert.description.length > 120 
+                        ? concert.description.substring(0, 120) + '...' 
+                        : concert.description
+                      }
+                    </Typography>
+                  )}
 
                   {/* Details Container */}
                   <Box

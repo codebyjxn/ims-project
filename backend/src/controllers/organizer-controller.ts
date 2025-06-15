@@ -61,34 +61,32 @@ export class OrganizerController {
   // Create a new concert
   async createConcert(req: Request, res: Response): Promise<void> {
     try {
-      const {
-        organizerId,
-        title,
-        description,
-        date,
-        time,
-        arenaId,
-        zones,
-        artists
-      } = req.body;
+          const {
+      organizerId,
+      description,
+      date,
+      time,
+      arenaId,
+      zones,
+      artists
+    } = req.body;
 
 
-      if (!organizerId || !title || !date || !time || !arenaId || !zones || !artists) {
-        res.status(400).json({ error: 'Missing required fields' });
-        return;
-      }
+    if (!organizerId || !description || !date || !time || !arenaId || !zones || !artists) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
 
 
-      const result = await OrganizerService.createConcert({
-        organizerId,
-        title,
-        description,
-        date,
-        time,
-        arenaId,
-        zones,
-        artists
-      });
+    const result = await OrganizerService.createConcert({
+      organizerId,
+      description,
+      date,
+      time,
+      arenaId,
+      zones,
+      artists
+    });
       res.status(201).json({
         message: 'Concert created successfully',
         concertId: result.concertId || result._id
@@ -242,6 +240,27 @@ export class OrganizerController {
     } catch (error) {
       console.error('Error fetching arenas analytics:', error);
       res.status(500).json({ error: 'Failed to fetch arenas analytics', details: error instanceof Error ? error.message : error });
+    }
+  }
+
+  // Get available arenas for a specific date
+  async getAvailableArenas(req: Request, res: Response): Promise<void> {
+    try {
+      const { date } = req.query;
+      
+      if (!date) {
+        res.status(400).json({ error: 'Date is required' });
+        return;
+      }
+      
+      const availableArenas = await OrganizerService.getAvailableArenas(date as string);
+      res.json(availableArenas);
+    } catch (error) {
+      console.error('Error fetching available arenas:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch available arenas',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 }

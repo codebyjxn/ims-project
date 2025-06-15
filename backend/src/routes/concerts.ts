@@ -7,6 +7,9 @@ import { ConcertController } from '../controllers/concert-controller';
 
 const router = Router();
 
+// GET /api/concerts - Get all concerts with filtering and pagination
+router.get('/', CleanConcertController.getConcerts);
+
 // GET /api/concerts/upcoming - Must be before /:id route
 router.get('/upcoming', ConcertController.getUpcomingConcerts);
 

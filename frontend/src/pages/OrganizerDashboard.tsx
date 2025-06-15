@@ -66,7 +66,22 @@ const OrganizerDashboard: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return 'No date';
+    
+    let date;
+    if (dateString.includes('T')) {
+      date = new Date(dateString);
+    } else if (dateString.includes('-')) {
+      date = new Date(dateString + 'T00:00:00');
+    } else {
+      date = new Date(dateString);
+    }
+    
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -201,7 +216,6 @@ const OrganizerDashboard: React.FC = () => {
           </Grid>
         )}
 
-        {/* Quick Actions - Clean Design */}
         <Card sx={{ mb: 4, borderRadius: 2, boxShadow: 1 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
@@ -266,7 +280,7 @@ const OrganizerDashboard: React.FC = () => {
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                       <Typography variant="h6" component="h3" sx={{ flexGrow: 1, fontWeight: 600 }}>
-                        {concert.title}
+                        {concert.description}
                       </Typography>
                       <Chip 
                         label={concert.status} 
@@ -305,17 +319,10 @@ const OrganizerDashboard: React.FC = () => {
 
                     <Divider sx={{ my: 2 }} />
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                       <Typography variant="body2" color="text.secondary">
                         Revenue: {formatCurrency(concert.totalRevenue)}
                       </Typography>
-                      <Button
-                        size="small"
-                        onClick={() => navigate(`/organizers/concerts/${concert.concert_id}`)}
-                        sx={{ textTransform: 'none' }}
-                      >
-                        View Details
-                      </Button>
                     </Box>
                   </CardContent>
                 </Card>

@@ -54,13 +54,13 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   const [artists, setArtists] = useState<Artist[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [selectedArena, setSelectedArena] = useState<Arena | null>(null);
   const [zoneConfigurations, setZoneConfigurations] = useState<ZoneConfiguration[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const [dateBlurred, setDateBlurred] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -68,17 +68,46 @@ export const ConcertCreationWizard: React.FC<Props> = ({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (date && isValidDate(date)) {
+      loadAvailableArenas();
+    } else {
+      setArenas([]);
+    }
+  }, [date]);
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [arenasData, artistsData] = await Promise.all([
-        organizerService.getArenas(),
-        organizerService.getArtists(),
-      ]);
-      setArenas(arenasData);
+      const artistsData = await organizerService.getArtists();
       setArtists(artistsData);
     } catch (error) {
       setError('Failed to load initial data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAvailableArenas = async () => {
+    if (!date) {
+      setArenas([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const isoDate = convertToISODate(date);
+      const availableArenas = await organizerService.getAvailableArenas(isoDate);
+      setArenas(availableArenas);
+      
+      if (selectedArena && !availableArenas.find(arena => arena.arena_id === selectedArena.arena_id)) {
+        setSelectedArena(null);
+        setZoneConfigurations([]);
+      }
+    } catch (error) {
+      setError('Failed to load available arenas');
+      setArenas([]);
     } finally {
       setLoading(false);
     }
@@ -94,13 +123,13 @@ export const ConcertCreationWizard: React.FC<Props> = ({
 
   const handleReset = () => {
     setActiveStep(0);
-    setTitle('');
     setDescription('');
     setDate('');
     setTime('');
     setSelectedArena(null);
     setZoneConfigurations([]);
     setSelectedArtists([]);
+    setDateBlurred(false);
     setError(null);
   };
 
@@ -128,13 +157,66 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   };
 
   const handleArtistToggle = (artistId: string) => {
-    setSelectedArtists(prev => {
-      if (prev.includes(artistId)) {
-        return prev.filter(id => id !== artistId);
-      } else {
-        return [...prev, artistId];
-      }
-    });
+    setSelectedArtists(prev => 
+      prev.includes(artistId) 
+        ? prev.filter(id => id !== artistId)
+        : [...prev, artistId]
+    );
+  };
+
+  const isValidDate = (dateString: string): boolean => {
+
+    const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+    if (!dateRegex.test(dateString)) {
+      return false;
+    }
+
+    const [day, month, year] = dateString.split('-').map(Number);
+    
+    const date = new Date(year, month - 1, day); 
+    if (isNaN(date.getTime())) {
+      return false;
+    }
+
+    if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date >= today;
+  };
+
+  const formatDateInput = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    
+    if (digits.length >= 8) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`;
+    } else if (digits.length >= 4) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+    } else if (digits.length >= 2) {
+      return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    }
+    return digits;
+  };
+
+  const handleDateChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const formattedDate = formatDateInput(e.target.value);
+    setDate(formattedDate);
+  };
+
+  const handleDateFocus = () => {
+    setDateBlurred(false);
+  };
+
+  const handleDateBlur = () => {
+    setDateBlurred(true);
+  };
+
+  const convertToISODate = (ddmmyyyy: string): string => {
+    if (!isValidDate(ddmmyyyy)) return '';
+    const [day, month, year] = ddmmyyyy.split('-');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   };
 
   const handleSubmit = async () => {
@@ -144,9 +226,8 @@ export const ConcertCreationWizard: React.FC<Props> = ({
 
       const concertData: ConcertCreationData = {
         ...(organizerId && { organizerId }), 
-        title,
         description,
-        date,
+        date: convertToISODate(date),
         time,
         arenaId: selectedArena?.arena_id || '',
         zones: zoneConfigurations,
@@ -167,7 +248,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   const isStepValid = () => {
     switch (activeStep) {
       case 0:
-        return title && description && date && time;
+        return description && isValidDate(date) && time;
       case 1:
         return selectedArena;
       case 2:
@@ -190,16 +271,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Concert Title"
-                  value={title}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Description"
+                  label="Concert Description"
                   multiline
                   rows={4}
                   value={description}
@@ -211,10 +283,24 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                 <TextField
                   fullWidth
                   label="Concert Date"
-                  type="date"
+                  type="text"
                   value={date}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDate(e.target.value)}
+                  onChange={handleDateChange}
+                  onFocus={handleDateFocus}
+                  onBlur={handleDateBlur}
                   InputLabelProps={{ shrink: true }}
+                  inputProps={{
+                    pattern: "\\d{2}-\\d{2}-\\d{4}",
+                    placeholder: "DD-MM-YYYY",
+                    maxLength: 10
+                  }}
+                  placeholder="DD-MM-YYYY"
+                  helperText={
+                    dateBlurred && date && !isValidDate(date) 
+                      ? "Please enter a valid future date in DD-MM-YYYY format" 
+                      : "Enter date in DD-MM-YYYY format (e.g., 25-12-2025)"
+                  }
+                  error={dateBlurred && date !== '' && !isValidDate(date)}
                   required
                 />
               </Grid>
@@ -237,36 +323,55 @@ export const ConcertCreationWizard: React.FC<Props> = ({
         return (
           <Box sx={{ mt: 2 }}>
             <Typography variant="h6" gutterBottom>
-              Select an Arena
+              Select an Available Arena
             </Typography>
-            <Grid container spacing={2}>
-              {arenas.map((arena) => (
-                <Grid item xs={12} md={6} key={arena.arena_id}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      border: selectedArena?.arena_id === arena.arena_id ? 2 : 1,
-                      borderColor: selectedArena?.arena_id === arena.arena_id ? 'primary.main' : 'divider',
-                      borderRadius: 2,
-                    }}
-                    onClick={() => handleArenaSelect(arena)}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">{arena.arena_name}</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        📍 {arena.arena_location}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        👥 Capacity: {arena.total_capacity.toLocaleString()}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        {arena.zones.length} zones available
-                      </Typography>
-                    </CardContent>
-                  </Card>
+            {!date ? (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Please set the concert date first to see available arenas.
+              </Alert>
+            ) : !isValidDate(date) ? (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Please enter a valid future date in DD-MM-YYYY format to see available arenas.
+              </Alert>
+            ) : arenas.length === 0 ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                No arenas are available for the selected date. Please choose a different date.
+              </Alert>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Showing {arenas.length} arena(s) available for {date}
+                </Typography>
+                <Grid container spacing={2}>
+                  {arenas.map((arena) => (
+                    <Grid item xs={12} md={6} key={arena.arena_id}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          border: selectedArena?.arena_id === arena.arena_id ? 2 : 1,
+                          borderColor: selectedArena?.arena_id === arena.arena_id ? 'primary.main' : 'divider',
+                          borderRadius: 2,
+                        }}
+                        onClick={() => handleArenaSelect(arena)}
+                      >
+                        <CardContent>
+                          <Typography variant="h6">{arena.arena_name}</Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            📍 {arena.arena_location}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            👥 Capacity: {arena.total_capacity.toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            {arena.zones.length} zones available
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
                 </Grid>
-              ))}
-            </Grid>
+              </>
+            )}
           </Box>
         );
 
@@ -343,7 +448,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
               <CardContent>
                 <Grid container spacing={2}>
                   <Grid item xs={12}>
-                    <Typography variant="h5">{title}</Typography>
+                    <Typography variant="h5">Concert Details</Typography>
                     <Typography variant="body1" sx={{ mt: 1 }}>
                       {description}
                     </Typography>

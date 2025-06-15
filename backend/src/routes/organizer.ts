@@ -31,6 +31,11 @@ router.get('/arenas', ensureOrganizer, (req, res) => {
   organizerController.getArenas(req, res);
 });
 
+// Get available arenas for a specific date
+router.get('/arenas/available', ensureOrganizer, (req, res) => {
+  organizerController.getAvailableArenas(req, res);
+});
+
 // Get all artists
 router.get('/artists', ensureOrganizer, (req, res) => {
   organizerController.getArtists(req, res);

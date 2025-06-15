@@ -21,7 +21,7 @@ export interface Artist {
   
 export interface OrganizerConcert {
     concert_id: string;
-    title: string;
+    description: string;
     date: string;
     time: string;
     arena: {
@@ -48,8 +48,7 @@ export interface OrganizerStats {
 }
   
 export interface ConcertCreationData {
-    organizerId?: string; // Optional - backend will auto-assign from authenticated user
-    title: string;
+    organizerId?: string;
     description: string;
     date: string;
     time: string;
@@ -68,7 +67,7 @@ class OrganizerService {
         const concerts = await request<any[]>(`/organizer/concerts/${id}`);
         return concerts.map(concert => ({
           concert_id: concert.concert_id,
-          title: concert.title,
+          description: concert.description,
           date: concert.date,
           time: concert.time,
           arena: {
@@ -100,17 +99,13 @@ class OrganizerService {
     }
 
     async getArenas(): Promise<Arena[]> {
-        const arenas = await request<any[]>(`/organizer/arenas`);
-        return arenas.map((arena: any) => ({
-          arena_id: arena.arena_id,
-          arena_name: arena.arena_name,
-          arena_location: arena.arena_location,
-          total_capacity: arena.total_capacity,
-          zones: (arena.zones || []).map((zone: any) => ({
-            zone_name: zone.zone_name,
-            capacity_per_zone: zone.capacity_per_zone,
-          })),
-        }));
+        return request<Arena[]>('/organizer/arenas');
+    }
+
+    async getAvailableArenas(date: string): Promise<Arena[]> {
+        const params = new URLSearchParams();
+        params.append('date', date);
+        return request<Arena[]>(`/organizer/arenas/available?${params.toString()}`);
     }
     
     async getArtists(): Promise<Artist[]> {
@@ -155,7 +150,6 @@ class OrganizerService {
     }
 
     private getUserId(): string | null {
-        // Implementation depends on how user info is stored
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         return user?.id || null;
     }

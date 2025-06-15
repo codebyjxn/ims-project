@@ -34,6 +34,16 @@ export interface Concert {
 }
 
 class ConcertService {
+    async getAllConcerts(limit?: number, offset?: number, city?: string, date?: string, genre?: string): Promise<Concert[]> {
+        const params = new URLSearchParams();
+        if (limit) params.append('limit', limit.toString());
+        if (offset) params.append('offset', offset.toString());
+        if (city) params.append('city', city);
+        if (date) params.append('date', date);
+        if (genre) params.append('genre', genre);
+        return request<{ concerts: Concert[] }>(`/concerts?${params.toString()}`).then(data => data.concerts);
+    }
+
     async getUpcomingConcerts(limit?: number, genre?: string): Promise<Concert[]> {
         const params = new URLSearchParams();
         if (limit) params.append('limit', limit.toString());
