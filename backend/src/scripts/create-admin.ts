@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
-import { connectMongoDB, getUsersCollection, IUser } from '../models/mongodb-schemas';
+import { getUsersCollection, IUser } from '../models/mongodb-schemas';
 import { getPool } from '../lib/postgres';
 import { migrationStatus } from '../services/migration-status';
+import { mongoManager } from '../lib/mongodb-connection';
 
 const ADMIN_EMAIL = 'admin@concert.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -80,8 +81,8 @@ const createMongoDBAdmin = async (verbose: boolean = false): Promise<void> => {
     console.log('\n🔧 Creating MongoDB admin user...');
   }
   
-  await connectMongoDB(); // Ensures singleton is connected
-  const usersCollection = getUsersCollection();
+  await mongoManager.connect(); // Ensures singleton is connected
+  const usersCollection = await getUsersCollection();
   
   // Check if admin user already exists
   const existingUser = await usersCollection.findOne({ email: ADMIN_EMAIL });

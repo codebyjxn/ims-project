@@ -14,6 +14,7 @@ import {
   ITicket
 } from '../models/mongodb-schemas';
 import { migrationStatus } from '../services/migration-status';
+import { mongoManager } from '../lib/mongodb-connection';
 
 export interface DatabaseResult<T = any> {
   rows?: T[];
@@ -393,35 +394,41 @@ class PostgreSQLAdapter implements DatabaseAdapter {
 }
 
 class MongoDBAdapter implements DatabaseAdapter {
-  private db: Db;
-
   constructor() {
-    this.db = getDatabase();
+    // The db instance should be set asynchronously
+    // So, we need to make the constructor async and set db after awaiting mongoManager.getDatabase()
+    // However, constructors cannot be async, so we should use an async init method or set db in each method
+    // For now, update all usages to use await mongoManager.getDatabase() directly in each method
   }
 
   async getUsers(): Promise<DatabaseResult> {
+    const db = await mongoManager.getDatabase();
     const data = await (await getUsersCollection()).find({}).sort({ registration_date: -1 }).toArray();
     return { data };
   }
 
   async getUserById(id: string): Promise<DatabaseResult> {
+    const db = await mongoManager.getDatabase();
     const data = await (await getUsersCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async createUser(user: any): Promise<DatabaseResult> {
+    const db = await mongoManager.getDatabase();
     const result = await (await getUsersCollection()).insertOne(user);
     const data = await (await getUsersCollection()).find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
   async updateUser(id: string, updates: any): Promise<DatabaseResult> {
+    const db = await mongoManager.getDatabase();
     await (await getUsersCollection()).updateOne({ _id: id }, { $set: updates });
     const data = await (await getUsersCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async deleteUser(id: string): Promise<DatabaseResult> {
+    const db = await mongoManager.getDatabase();
     const data = await (await getUsersCollection()).find({ _id: id }).toArray();
     await (await getUsersCollection()).deleteOne({ _id: id });
     return { data };

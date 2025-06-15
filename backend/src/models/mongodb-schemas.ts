@@ -1,4 +1,4 @@
-import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
+import { Collection, ObjectId } from 'mongodb';
 import { mongoManager } from '../lib/mongodb-connection'; // Use the robust singleton connection manager
 
 // ========== NATIVE MONGODB INTERFACES ==========
@@ -88,43 +88,6 @@ export interface ITicket {
   arena_name?: string;
   arena_location?: string;
 }
-
-// ========== NATIVE MONGODB CONNECTION ==========
-let client: MongoClient;
-let db: Db;
-
-export const connectMongoDB = async (): Promise<void> => {
-  try {
-    // Ensure the singleton client is connected
-    await mongoManager.connect();
-
-    // Cache for sync getters
-    db = await mongoManager.getDatabase();
-    // mongoManager exposes its client internally; cast to any to grab it for legacy code
-    // Note: direct client usage should be avoided going forward.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - accessing private prop in rare case we still need it
-    client = (mongoManager as any).client as MongoClient;
-
-    console.log('Connected to MongoDB successfully (via mongoManager)');
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    throw error;
-  }
-};
-
-export const getDatabase = (): Db => {
-  if (!db) {
-    throw new Error('Database not connected. Call connectMongoDB() first.');
-  }
-  return db;
-};
-
-export const closeMongoDB = async (): Promise<void> => {
-  await mongoManager.close();
-  db = undefined as unknown as Db;
-  client = undefined as unknown as MongoClient;
-};
 
 // ========== COLLECTION GETTERS ==========
 export const getUsersCollection = async () => mongoManager.getCollection<IUser>('users');

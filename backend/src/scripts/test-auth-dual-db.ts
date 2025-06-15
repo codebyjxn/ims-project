@@ -1,5 +1,5 @@
 import { migrationStatus } from '../services/migration-status';
-import { connectMongoDB } from '../models/mongodb-schemas';
+import { mongoManager } from '../lib/mongodb-connection';
 import { getPool } from '../lib/postgres';
 
 /**
@@ -12,7 +12,7 @@ async function testAuthDualDatabase() {
     console.log('=== AUTHENTICATION DUAL DATABASE TEST ===\n');
 
     // Initialize connections
-    await connectMongoDB();
+    await mongoManager.connect();
     await getPool();
     console.log('✅ Connected to both databases\n');
 

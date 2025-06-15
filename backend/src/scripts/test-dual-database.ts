@@ -1,7 +1,7 @@
 import { DataService } from '../services/data-service';
 import { migrationStatus } from '../services/migration-status';
-import { connectMongoDB } from '../models/mongodb-schemas';
 import { getPool } from '../lib/postgres';
+import { mongoManager } from '../lib/mongodb-connection';
 
 /**
  * Test script to demonstrate dual database functionality
@@ -13,7 +13,7 @@ async function testDualDatabase() {
     console.log('=== DUAL DATABASE SYSTEM TEST ===\n');
 
     // Initialize connections
-    await connectMongoDB();
+    await mongoManager.connect();
     await getPool();
     console.log('✅ Connected to both databases\n');
 

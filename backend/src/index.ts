@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { config } from './config';
 import { getPool } from './lib/postgres';
-import { connectMongoDB, getDatabase, closeMongoDB } from './models/mongodb-schemas';
 import { mongoManager } from './lib/mongodb-connection';
 import { migrationStatus } from './services/migration-status';
 import { createAdminUser } from './scripts/create-admin';
@@ -101,7 +100,7 @@ const PORT = config.port;
 const startServer = async () => {
   try {
     // Connect to MongoDB
-    await connectMongoDB();
+    await mongoManager.connect();
     console.log('Connected to MongoDB');
 
     // Connect to PostgreSQL
@@ -147,13 +146,13 @@ startServer();
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
   await getPool();
-  await closeMongoDB();
+  await mongoManager.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
   await getPool();
-  await closeMongoDB();
+  await mongoManager.close();
   process.exit(0);
 });
