@@ -45,13 +45,13 @@ export class OrganizerService {
     const organizerRepo = factory.getOrganizerRepository();
     const arenas = await organizerRepo.getArenas();
     return arenas.map((arena: any) => ({
-      arena_id: arena.arena_id,
-      arena_name: arena.arena_name,
-      arena_location: arena.arena_location,
-      total_capacity: arena.total_capacity,
+      arena_id: arena.arena_id || arena._id || '',
+      arena_name: arena.arena_name || arena.name || '',
+      arena_location: arena.arena_location || arena.location || '',
+      total_capacity: arena.total_capacity || arena.capacity || 0,
       zones: (arena.zones || []).map((zone: any) => ({
-        zone_name: zone.zone_name,
-        capacity_per_zone: zone.capacity_per_zone,
+        zone_name: zone.zone_name || zone.name || '',
+        capacity_per_zone: zone.capacity_per_zone || zone.capacity || 0,
       })),
     }));
   }
@@ -73,11 +73,7 @@ export class OrganizerService {
     return await organizerRepo.createConcert(concertData);
   }
 
-  static async getArenasAnalytics(organizerId: string): Promise<any[]> {
-    const factory = RepositoryFactory.getFactory();
-    const organizerRepo = factory.getOrganizerRepository();
-    return await organizerRepo.getArenasAnalytics(organizerId);
-  }
+
 
   static async getAvailableArenas(date: string): Promise<any[]> {
     const factory = RepositoryFactory.getFactory();
@@ -100,5 +96,42 @@ export class OrganizerService {
     });
     
     return availableArenas;
+  }
+
+  static async getAvailableArtists(date: string): Promise<ArtistDTO[]> {
+    const factory = RepositoryFactory.getFactory();
+    const organizerRepo = factory.getOrganizerRepository();
+    const concertRepo = factory.getConcertRepository();
+    
+    // Get all artists
+    const allArtists = await organizerRepo.getArtists();
+    
+    const concertDate = new Date(date);
+    const concertsOnDate = await concertRepo.findByDate(concertDate);
+    
+    // Get artist IDs that are already booked on this date
+    const bookedArtistIds: string[] = [];
+    concertsOnDate.forEach(concert => {
+      if (concert.artists && Array.isArray(concert.artists)) {
+        concert.artists.forEach((artist: any) => {
+          const artistId = artist.artist_id || artist._id;
+          if (artistId && !bookedArtistIds.includes(artistId)) {
+            bookedArtistIds.push(artistId);
+          }
+        });
+      }
+    });
+    
+    // Filter out artists that are already booked
+    const availableArtists = allArtists.filter(artist => {
+      const artistId = artist.artist_id || artist._id;
+      return !bookedArtistIds.includes(artistId);
+    });
+    
+    return availableArtists.map((artist: any) => ({
+      artist_id: artist.artist_id || artist._id || '',
+      artist_name: artist.artist_name || artist.name || '',
+      genre: artist.genre || '',
+    }));
   }
 } 

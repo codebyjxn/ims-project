@@ -41,6 +41,11 @@ router.get('/artists', ensureOrganizer, (req, res) => {
   organizerController.getArtists(req, res);
 });
 
+// Get available artists for a specific date
+router.get('/artists/available', ensureOrganizer, (req, res) => {
+  organizerController.getAvailableArtists(req, res);
+});
+
 // Create a new concert
 router.post('/concerts', ensureOrganizer, (req, res) => {
 
@@ -66,8 +71,6 @@ router.put('/concerts/:concertId', ensureOrganizer, (req, res) => {
   organizerController.updateConcert(req, res);
 });
 
-router.get('/arenas/analytics', ensureOrganizer, (req, res) => {
-  organizerController.getArenasAnalytics(req, res);
-});
+
 
 export default router; 

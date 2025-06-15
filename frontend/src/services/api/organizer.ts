@@ -141,12 +141,14 @@ class OrganizerService {
         });
     }
 
-    async getConcertAnalytics(concertId: string): Promise<any> {
-        return request<any>(`/organizer/concerts/${concertId}/analytics`);
-    }
 
-    async getArenasAnalytics(): Promise<any[]> {
-        return request<any[]>(`/organizer/arenas/analytics`);
+    async getAvailableArtists(date: string): Promise<Artist[]> {
+        const artists = await request<any[]>(`/organizer/artists/available?date=${encodeURIComponent(date)}`);
+        return artists.map((artist: any) => ({
+          artist_id: artist.artist_id || artist._id || '',
+          artist_name: artist.artist_name || artist.name || '',
+          genre: artist.genre || '',
+        }));
     }
 
     private getUserId(): string | null {
