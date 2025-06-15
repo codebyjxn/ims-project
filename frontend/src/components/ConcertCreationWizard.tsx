@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent, useCallback, useTransition } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -31,7 +31,7 @@ interface ZoneConfiguration {
   zone_name: string;
   capacity_per_zone: number;
   price: number;
-  priceInput?: string; 
+  priceInput: string;
 }
 
 const steps = [
@@ -48,8 +48,11 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   onSuccess,
   organizerId,
 }) => {
+  const [, startTransition] = useTransition();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingArenas, setLoadingArenas] = useState(false);
+  const [loadingArtists, setLoadingArtists] = useState(false);
   const [arenas, setArenas] = useState<Arena[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -64,54 +67,78 @@ export const ConcertCreationWizard: React.FC<Props> = ({
 
   useEffect(() => {
     if (open) {
-      loadInitialData();
+  
+      handleReset();
     }
   }, [open]);
 
   useEffect(() => {
-    if (date && isValidDate(date)) {
-      loadAvailableArenas();
-    } else {
-      setArenas([]);
+    if (selectedArena && arenas.length > 0 && !arenas.find(a => a.arena_id === selectedArena.arena_id)) {
+      setSelectedArena(null);
+      setZoneConfigurations([]);
     }
-  }, [date]);
+  }, [arenas, selectedArena]);
 
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-      const artistsData = await organizerService.getArtists();
-      setArtists(artistsData);
-    } catch (error) {
-      setError('Failed to load initial data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const convertToISODate = useCallback((dateString: string): string => {
+    const [day, month, year] = dateString.split('-');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }, []);
 
-  const loadAvailableArenas = async () => {
+  const loadAvailableArenas = useCallback(async () => {
     if (!date) {
       setArenas([]);
       return;
     }
 
     try {
-      setLoading(true);
+      setLoadingArenas(true);
       setError(null);
       const isoDate = convertToISODate(date);
       const availableArenas = await organizerService.getAvailableArenas(isoDate);
       setArenas(availableArenas);
-      
-      if (selectedArena && !availableArenas.find(arena => arena.arena_id === selectedArena.arena_id)) {
-        setSelectedArena(null);
-        setZoneConfigurations([]);
-      }
     } catch (error) {
       setError('Failed to load available arenas');
       setArenas([]);
     } finally {
-      setLoading(false);
+      setLoadingArenas(false);
     }
-  };
+  }, [date, convertToISODate]);
+
+  const loadAvailableArtists = useCallback(async () => {
+    if (!date) {
+      setArtists([]);
+      return;
+    }
+
+    try {
+      setLoadingArtists(true);
+      setError(null);
+      const isoDate = convertToISODate(date);
+      const availableArtists = await organizerService.getAvailableArtists(isoDate);
+      setArtists(availableArtists);
+      
+      setSelectedArtists(prev => 
+        prev.filter(artistId => 
+          availableArtists.find(artist => artist.artist_id === artistId)
+        )
+      );
+    } catch (error) {
+      setError('Failed to load available artists');
+      setArtists([]);
+    } finally {
+      setLoadingArtists(false);
+    }
+  }, [date, convertToISODate]);
+
+  useEffect(() => {
+    if (date && isValidDate(date)) {
+      loadAvailableArenas();
+      loadAvailableArtists();
+    } else {
+      setArenas([]);
+      setArtists([]);
+    }
+  }, [date, loadAvailableArenas, loadAvailableArtists]);
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -131,21 +158,30 @@ export const ConcertCreationWizard: React.FC<Props> = ({
     setSelectedArtists([]);
     setDateBlurred(false);
     setError(null);
+    setArenas([]);
+    setArtists([]);
   };
 
-  const handleArenaSelect = (arena: Arena) => {
+  const handleArenaSelect = useCallback((arena: Arena) => {
+    if (selectedArena?.arena_id === arena.arena_id) {
+      return;
+    }
+
     setSelectedArena(arena);
-    setZoneConfigurations(
-      arena.zones.map(zone => ({
-        zone_name: zone.zone_name,
-        capacity_per_zone: zone.capacity_per_zone,
-        price: 0,
-        priceInput: '',
-      }))
-    );
-  };
+    
+    startTransition(() => {
+      setZoneConfigurations(
+        arena.zones.map(zone => ({
+          zone_name: zone.zone_name,
+          capacity_per_zone: zone.capacity_per_zone,
+          price: 0,
+          priceInput: '',
+        }))
+      );
+    });
+  }, [selectedArena]);
 
-  const updateZonePrice = (zoneName: string, inputValue: string) => {
+  const updateZonePrice = useCallback((zoneName: string, inputValue: string) => {
     const numericValue = inputValue === '' ? 0 : parseFloat(inputValue) || 0;
     setZoneConfigurations(prev =>
       prev.map(zone =>
@@ -154,55 +190,49 @@ export const ConcertCreationWizard: React.FC<Props> = ({
           : zone
       )
     );
-  };
+  }, []);
 
-  const handleArtistToggle = (artistId: string) => {
+  const handleArtistToggle = useCallback((artistId: string) => {
     setSelectedArtists(prev => 
       prev.includes(artistId) 
         ? prev.filter(id => id !== artistId)
         : [...prev, artistId]
     );
-  };
+  }, []);
 
   const isValidDate = (dateString: string): boolean => {
-
-    const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
-    if (!dateRegex.test(dateString)) {
-      return false;
-    }
-
-    const [day, month, year] = dateString.split('-').map(Number);
+    if (!dateString) return false;
     
-    const date = new Date(year, month - 1, day); 
-    if (isNaN(date.getTime())) {
+    const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
+    if (!dateRegex.test(dateString)) return false;
+    
+    const [day, month, year] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
       return false;
     }
-
-    if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
-      return false;
-    }
-
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date >= today;
   };
 
   const formatDateInput = (value: string): string => {
-    const digits = value.replace(/\D/g, '');
+    const numbers = value.replace(/\D/g, '');
     
-    if (digits.length >= 8) {
-      return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`;
-    } else if (digits.length >= 4) {
-      return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
-    } else if (digits.length >= 2) {
-      return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 4) {
+      return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
+    } else {
+      return `${numbers.slice(0, 2)}-${numbers.slice(2, 4)}-${numbers.slice(4, 8)}`;
     }
-    return digits;
   };
 
   const handleDateChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const formattedDate = formatDateInput(e.target.value);
-    setDate(formattedDate);
+    const formatted = formatDateInput(e.target.value);
+    setDate(formatted);
   };
 
   const handleDateFocus = () => {
@@ -211,12 +241,6 @@ export const ConcertCreationWizard: React.FC<Props> = ({
 
   const handleDateBlur = () => {
     setDateBlurred(true);
-  };
-
-  const convertToISODate = (ddmmyyyy: string): string => {
-    if (!isValidDate(ddmmyyyy)) return '';
-    const [day, month, year] = ddmmyyyy.split('-');
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   };
 
   const handleSubmit = async () => {
@@ -333,6 +357,11 @@ export const ConcertCreationWizard: React.FC<Props> = ({
               <Alert severity="error" sx={{ mb: 2 }}>
                 Please enter a valid future date in DD-MM-YYYY format to see available arenas.
               </Alert>
+            ) : loadingArenas ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+                <CircularProgress size={24} sx={{ mr: 2 }} />
+                <Typography>Loading available arenas...</Typography>
+              </Box>
             ) : arenas.length === 0 ? (
               <Alert severity="warning" sx={{ mb: 2 }}>
                 No arenas are available for the selected date. Please choose a different date.
@@ -351,6 +380,13 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                           border: selectedArena?.arena_id === arena.arena_id ? 2 : 1,
                           borderColor: selectedArena?.arena_id === arena.arena_id ? 'primary.main' : 'divider',
                           borderRadius: 2,
+                          transition: 'all 0.2s ease-in-out',
+                          transform: selectedArena?.arena_id === arena.arena_id ? 'scale(1.02)' : 'scale(1)',
+                          boxShadow: selectedArena?.arena_id === arena.arena_id ? 3 : 1,
+                          '&:hover': {
+                            transform: 'scale(1.01)',
+                            boxShadow: 2,
+                          },
                         }}
                         onClick={() => handleArenaSelect(arena)}
                       >
@@ -381,30 +417,37 @@ export const ConcertCreationWizard: React.FC<Props> = ({
             <Typography variant="h6" gutterBottom>
               Configure Zone Pricing
             </Typography>
-            {selectedArena && (
+            {selectedArena ? (
               <Grid container spacing={2}>
                 {zoneConfigurations.map((zone) => (
                   <Grid item xs={12} md={6} key={zone.zone_name}>
-                    <Card sx={{ borderRadius: 2 }}>
+                    <Card variant="outlined" sx={{ borderRadius: 2 }}>
                       <CardContent>
-                        <Typography variant="h6">{zone.zone_name}</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          Capacity: {zone.capacity_per_zone} seats
+                        <Typography variant="h6" gutterBottom>
+                          {zone.zone_name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Capacity: {zone.capacity_per_zone}
                         </Typography>
                         <TextField
                           fullWidth
-                          label="Price per Ticket ($)"
+                          label="Price ($)"
                           type="number"
-                          value={zone.priceInput !== undefined ? zone.priceInput : (zone.price === 0 ? '' : zone.price.toString())}
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => updateZonePrice(zone.zone_name, e.target.value)}
-                          placeholder="Enter price"
+                          value={zone.priceInput}
+                          onChange={(e) => updateZonePrice(zone.zone_name, e.target.value)}
                           inputProps={{ min: 0, step: 0.01 }}
+                          sx={{ mt: 2 }}
+                          required
                         />
                       </CardContent>
                     </Card>
                   </Grid>
                 ))}
               </Grid>
+            ) : (
+              <Alert severity="info">
+                Please select an arena first.
+              </Alert>
             )}
           </Box>
         );
@@ -413,28 +456,59 @@ export const ConcertCreationWizard: React.FC<Props> = ({
         return (
           <Box sx={{ mt: 2 }}>
             <Typography variant="h6" gutterBottom>
-              Select Artists
+              Select Available Artists
             </Typography>
-            <Grid container spacing={2}>
-              {artists.map((artist) => (
-                <Grid item xs={12} md={6} key={artist.artist_id}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      border: selectedArtists.includes(artist.artist_id) ? 2 : 1,
-                      borderColor: selectedArtists.includes(artist.artist_id) ? 'primary.main' : 'divider',
-                      borderRadius: 2,
-                    }}
-                    onClick={() => handleArtistToggle(artist.artist_id)}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">{artist.artist_name}</Typography>
-                      <Chip label={artist.genre} size="small" sx={{ mt: 1 }} />
-                    </CardContent>
-                  </Card>
+            {!date ? (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Please set the concert date first to see available artists.
+              </Alert>
+            ) : !isValidDate(date) ? (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Please enter a valid future date in DD-MM-YYYY format to see available artists.
+              </Alert>
+            ) : loadingArtists ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+                <CircularProgress size={24} sx={{ mr: 2 }} />
+                <Typography>Loading available artists...</Typography>
+              </Box>
+            ) : artists.length === 0 ? (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                No artists are available for the selected date. Please choose a different date.
+              </Alert>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Showing {artists.length} artist(s) available for {date}
+                </Typography>
+                <Grid container spacing={2}>
+                  {artists.map((artist) => (
+                    <Grid item xs={12} md={6} key={artist.artist_id}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          border: selectedArtists.includes(artist.artist_id) ? 2 : 1,
+                          borderColor: selectedArtists.includes(artist.artist_id) ? 'primary.main' : 'divider',
+                          borderRadius: 2,
+                          transition: 'all 0.2s ease-in-out',
+                          transform: selectedArtists.includes(artist.artist_id) ? 'scale(1.02)' : 'scale(1)',
+                          boxShadow: selectedArtists.includes(artist.artist_id) ? 3 : 1,
+                          '&:hover': {
+                            transform: 'scale(1.01)',
+                            boxShadow: 2,
+                          },
+                        }}
+                        onClick={() => handleArtistToggle(artist.artist_id)}
+                      >
+                        <CardContent>
+                          <Typography variant="h6">{artist.artist_name}</Typography>
+                          <Chip label={artist.genre} size="small" sx={{ mt: 1 }} />
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
                 </Grid>
-              ))}
-            </Grid>
+              </>
+            )}
           </Box>
         );
 
@@ -455,7 +529,7 @@ export const ConcertCreationWizard: React.FC<Props> = ({
                   </Grid>
                   <Grid item xs={6}>
                     <Typography variant="body2" color="text.secondary">
-                      📅 {date} at {time}
+                      📅 {date || 'No date selected'} at {time || 'No time selected'}
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -501,7 +575,18 @@ export const ConcertCreationWizard: React.FC<Props> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth
+      sx={{
+        '& .MuiDialog-paper': {
+          minHeight: '600px',
+          maxHeight: '90vh',
+        }
+      }}
+    >
       <DialogTitle>
         Create New Concert
         <Stepper activeStep={activeStep} sx={{ mt: 2 }}>
@@ -512,18 +597,15 @@ export const ConcertCreationWizard: React.FC<Props> = ({
           ))}
         </Stepper>
       </DialogTitle>
-      <DialogContent>
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-            <CircularProgress />
-          </Box>
-        )}
+      <DialogContent sx={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-        {!loading && renderStepContent()}
+        <Box sx={{ flex: 1 }}>
+          {renderStepContent()}
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>

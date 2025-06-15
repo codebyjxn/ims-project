@@ -20,7 +20,7 @@ export class OrganizerController {
       res.json(concerts);
     } catch (error) {
       console.error('Error fetching organizer concerts:', error);
-      res.status(500).json({ error: 'Failed to fetch concerts' });
+      res.status(500).json({ error: 'Failed to fetch organizer concerts' });
     }
   }
 
@@ -32,7 +32,7 @@ export class OrganizerController {
       res.json(stats);
     } catch (error) {
       console.error('Error fetching organizer stats:', error);
-      res.status(500).json({ error: 'Failed to fetch statistics' });
+      res.status(500).json({ error: 'Failed to fetch organizer stats' });
     }
   }
 
@@ -61,39 +61,12 @@ export class OrganizerController {
   // Create a new concert
   async createConcert(req: Request, res: Response): Promise<void> {
     try {
-          const {
-      organizerId,
-      description,
-      date,
-      time,
-      arenaId,
-      zones,
-      artists
-    } = req.body;
-
-
-    if (!organizerId || !description || !date || !time || !arenaId || !zones || !artists) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
-
-
-    const result = await OrganizerService.createConcert({
-      organizerId,
-      description,
-      date,
-      time,
-      arenaId,
-      zones,
-      artists
-    });
-      res.status(201).json({
-        message: 'Concert created successfully',
-        concertId: result.concertId || result._id
-      });
+      const concertData = req.body;
+      const concert = await OrganizerService.createConcert(concertData);
+      res.status(201).json(concert);
     } catch (error) {
       console.error('Error creating concert:', error);
-      res.status(500).json({ error: 'Failed to create concert', details: error instanceof Error ? error.message : error });
+      res.status(500).json({ error: 'Failed to create concert' });
     }
   }
 
@@ -228,39 +201,41 @@ export class OrganizerController {
   }
 
 
-  async getArenasAnalytics(req: Request, res: Response): Promise<void> {
-    try {
-      const organizerId = req.user?.userId || req.query.organizerId || req.body.organizerId;
-      if (!organizerId) {
-        res.status(400).json({ error: 'Missing organizerId' });
-        return;
-      }
-      const analytics = await OrganizerService.getArenasAnalytics(organizerId);
-      res.json(analytics);
-    } catch (error) {
-      console.error('Error fetching arenas analytics:', error);
-      res.status(500).json({ error: 'Failed to fetch arenas analytics', details: error instanceof Error ? error.message : error });
-    }
-  }
+
 
   // Get available arenas for a specific date
   async getAvailableArenas(req: Request, res: Response): Promise<void> {
     try {
       const { date } = req.query;
       
-      if (!date) {
-        res.status(400).json({ error: 'Date is required' });
+      if (!date || typeof date !== 'string') {
+        res.status(400).json({ error: 'Date parameter is required' });
         return;
       }
-      
-      const availableArenas = await OrganizerService.getAvailableArenas(date as string);
+
+      const availableArenas = await OrganizerService.getAvailableArenas(date);
       res.json(availableArenas);
     } catch (error) {
       console.error('Error fetching available arenas:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch available arenas',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
+      res.status(500).json({ error: 'Failed to fetch available arenas' });
+    }
+  }
+
+  // Get available artists for a specific date
+  async getAvailableArtists(req: Request, res: Response): Promise<void> {
+    try {
+      const { date } = req.query;
+      
+      if (!date || typeof date !== 'string') {
+        res.status(400).json({ error: 'Date parameter is required' });
+        return;
+      }
+
+      const availableArtists = await OrganizerService.getAvailableArtists(date);
+      res.json(availableArtists);
+    } catch (error) {
+      console.error('Error fetching available artists:', error);
+      res.status(500).json({ error: 'Failed to fetch available artists' });
     }
   }
 }

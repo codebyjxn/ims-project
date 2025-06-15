@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -11,10 +10,7 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Divider,
-  Dialog,
-  DialogTitle,
-  DialogContent
+  Divider
 } from '@mui/material';
 import organizerService, { OrganizerConcert, OrganizerStats } from '../services/api/organizer';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +19,6 @@ import Navigation from '../components/Navigation';
 
 const OrganizerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   
   const [concerts, setConcerts] = useState<OrganizerConcert[]>([]);
   const [stats, setStats] = useState<OrganizerStats | null>(null);
@@ -216,32 +211,37 @@ const OrganizerDashboard: React.FC = () => {
           </Grid>
         )}
 
-        <Card sx={{ mb: 4, borderRadius: 2, boxShadow: 1 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Quick Actions
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 2 }}>
-              <Button
-                variant="contained"
-                onClick={handleCreateConcert}
-                size="large"
-                sx={{ borderRadius: 2, textTransform: 'none' }}
-              >
-                Create New Concert
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/organizers/analytics')}
-                sx={{ borderRadius: 2, textTransform: 'none' }}
-              >
-                View Analytics
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          mb: 6,
+          mt: 2
+        }}>
+          <Button
+            variant="contained"
+            onClick={handleCreateConcert}
+            size="large"
+            sx={{ 
+              borderRadius: 3,
+              textTransform: 'none',
+              px: 4,
+              py: 1.5,
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+              boxShadow: '0 4px 20px rgba(25, 118, 210, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #1565c0 30%, #1e88e5 90%)',
+                boxShadow: '0 6px 25px rgba(25, 118, 210, 0.4)',
+                transform: 'translateY(-2px)',
+              },
+              transition: 'all 0.3s ease'
+            }}
+          >
+            🎵 Create New Concert
+          </Button>
+        </Box>
 
-        {/* Concerts Section */}
         <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
           Your Concerts
         </Typography>
@@ -258,9 +258,25 @@ const OrganizerDashboard: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleCreateConcert}
-                sx={{ borderRadius: 2, textTransform: 'none' }}
+                size="large"
+                sx={{ 
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  fontWeight: 600,
+                  background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                  boxShadow: '0 4px 20px rgba(25, 118, 210, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #1565c0 30%, #1e88e5 90%)',
+                    boxShadow: '0 6px 25px rgba(25, 118, 210, 0.4)',
+                    transform: 'translateY(-2px)',
+                  },
+                  transition: 'all 0.3s ease'
+                }}
               >
-                Create Concert
+                🎵 Create Your First Concert
               </Button>
             </CardContent>
           </Card>
@@ -338,9 +354,17 @@ const OrganizerDashboard: React.FC = () => {
             sx={{ 
               borderRadius: '50px',
               minWidth: 'auto',
-              width: 56,
-              height: 56,
-              fontSize: '24px'
+              width: 64,
+              height: 64,
+              fontSize: '28px',
+              background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+              boxShadow: '0 6px 20px rgba(25, 118, 210, 0.4)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #1565c0 30%, #1e88e5 90%)',
+                boxShadow: '0 8px 25px rgba(25, 118, 210, 0.5)',
+                transform: 'scale(1.1)',
+              },
+              transition: 'all 0.3s ease'
             }}
           >
             +
@@ -348,30 +372,12 @@ const OrganizerDashboard: React.FC = () => {
         </Box>
       </Container>
 
-      {/* Concert Creation Dialog */}
-      <Dialog
-        open={createConcertOpen}
-        onClose={() => setCreateConcertOpen(false)}
-        maxWidth="lg"
-        fullWidth
-        sx={{ '& .MuiDialog-paper': { height: '90vh', borderRadius: 2 } }}
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Create New Concert</Typography>
-            <Button onClick={() => setCreateConcertOpen(false)} sx={{ minWidth: 'auto' }}>
-              ✕
-            </Button>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
-          <ConcertCreationWizard 
-            onSuccess={handleConcertCreated} 
-            open={createConcertOpen} 
-            onClose={() => setCreateConcertOpen(false)} 
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Concert Creation Wizard */}
+      <ConcertCreationWizard 
+        onSuccess={handleConcertCreated} 
+        open={createConcertOpen} 
+        onClose={() => setCreateConcertOpen(false)} 
+      />
     </Box>
   );
 };
