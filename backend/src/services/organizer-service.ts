@@ -24,6 +24,10 @@ export class OrganizerService {
         artist_name: artist.name || artist.artist_name || '',
         genre: artist.genre || '',
       })),
+      zone_pricing: (concert.zone_pricing || []).map((zone: any) => ({
+        zone_name: zone.zone_name || '',
+        price: zone.price || 0,
+      })),
     }));
   }
 
