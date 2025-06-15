@@ -9,6 +9,7 @@ export interface UpcomingConcertPerformance {
   arena_name: string;
   artists: string;
   tickets_sold: number;
+  total_revenue: number;
 }
 
 export class PostgresAnalyticsRepository {
@@ -27,10 +28,12 @@ export class PostgresAnalyticsRepository {
         c.description,
         ar.arena_name,
         COALESCE(artists_agg.artists, '') AS artists,
-        COUNT(t.ticket_id) AS tickets_sold
+        COUNT(t.ticket_id) AS tickets_sold,
+        COALESCE(SUM(czp.price), 0) AS total_revenue
       FROM concerts c
       JOIN arenas ar ON c.arena_id = ar.arena_id
       LEFT JOIN tickets t ON c.concert_id = t.concert_id
+      LEFT JOIN concert_zone_pricing czp ON t.concert_id = czp.concert_id AND t.zone_name = czp.zone_name
       LEFT JOIN (
         SELECT
           ca.concert_id,

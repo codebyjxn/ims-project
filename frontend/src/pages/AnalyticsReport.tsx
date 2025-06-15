@@ -196,6 +196,16 @@ const AnalyticsReport: React.FC = () => {
                 }}>
                   Tickets Sold
                 </TableCell>
+                <TableCell sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.8rem', 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.05em', 
+                  color: '#64748b',
+                  padding: '1rem 1.5rem'
+                }}>
+                  Total Revenue
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -240,6 +250,9 @@ const AnalyticsReport: React.FC = () => {
                       color: '#3b82f6' 
                     }}>
                       {concert.tickets_sold}
+                    </TableCell>
+                    <TableCell sx={{ padding: '1rem 1.5rem', color: '#16a34a', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>
+                      {concert.total_revenue?.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                     </TableCell>
                   </TableRow>
                 ))

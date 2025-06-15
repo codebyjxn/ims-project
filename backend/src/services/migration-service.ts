@@ -465,20 +465,36 @@ const migrateTickets = async (): Promise<number> => {
     const result = await pool.query(query);
     const tickets = result.rows;
 
+    // Build arena and concert maps for denormalization
+    const arenasResult = await pool.query('SELECT * FROM arenas');
+    const arenasMap = new Map(arenasResult.rows.map(a => [a.arena_id, a]));
+    const concertsResult = await pool.query('SELECT * FROM concerts');
+    const concertsMap = new Map(concertsResult.rows.map(c => [c.concert_id, c]));
+
     const ticketsCollection = await getTicketsCollection();
-    const mongoTickets: ITicket[] = tickets.map(ticket => ({
-      _id: ticket.ticket_id,
-      fan_id: ticket.fan_id,
-      concert_id: ticket.concert_id,
-      arena_id: ticket.arena_id,
-      zone_name: ticket.zone_name,
-      purchase_date: ticket.purchase_date,
-      purchase_price: ticket.price,
-      referral_code_used: ticket.referral_code_used === 'true',
-      concert_date: ticket.concert_date || new Date(),
-      fan_username: ticket.fan_username || 'Unknown',
-      price: ticket.price || 0
-    }));
+    const mongoTickets: ITicket[] = tickets.map(ticket => {
+      const arena = arenasMap.get(ticket.arena_id) || {};
+      const concert = concertsMap.get(ticket.concert_id) || {};
+      // Ensure price is a number
+      const priceNum = typeof ticket.price === 'string' ? parseFloat(ticket.price) : ticket.price;
+      return {
+        _id: ticket.ticket_id,
+        fan_id: ticket.fan_id,
+        concert_id: ticket.concert_id,
+        arena_id: ticket.arena_id,
+        zone_name: ticket.zone_name,
+        purchase_date: ticket.purchase_date,
+        purchase_price: priceNum,
+        referral_code_used: ticket.referral_code_used === 'true',
+        concert_date: ticket.concert_date || new Date(),
+        fan_username: ticket.fan_username || 'Unknown',
+        price: priceNum || 0,
+        // Denormalized fields
+        arena_name: arena.arena_name || '',
+        arena_location: arena.arena_location || '',
+        concert_name: concert.description || ''
+      };
+    });
 
     // Insert all tickets using native MongoDB insertMany
     if (mongoTickets.length > 0) {

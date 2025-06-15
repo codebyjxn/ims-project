@@ -25,57 +25,73 @@ export class MongoAnalyticsRepository {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Aggregate directly from tickets, using denormalized fields
     const pipeline = [
-      // 1. Filter for upcoming concerts
+      // 1. Filter for upcoming concerts (by ticket's concert_date)
       {
         $match: {
           concert_date: { $gte: today }
         }
       },
-      // 2. Count tickets for each concert
+      // 2. Lookup concert details to get artists
       {
         $lookup: {
-          from: 'tickets',
-          localField: '_id',
-          foreignField: 'concert_id',
-          as: 'sold_tickets'
-        }
-      },
-      // 3. Get arena details
-      {
-        $lookup: {
-          from: 'arenas',
-          localField: 'arena_id',
+          from: 'concerts',
+          localField: 'concert_id',
           foreignField: '_id',
-          as: 'arena_details'
+          as: 'concert_details'
         }
       },
-      // 4. Project the desired fields
+      // 3. Unwind concert_details
+      { $unwind: '$concert_details' },
+      // 4. Group by concert_id and denormalized fields
+      {
+        $group: {
+          _id: '$concert_id',
+          concert_name: { $first: '$concert_name' },
+          concert_date: { $first: '$concert_date' },
+          description: { $first: '$concert_name' },
+          arena_name: { $first: '$arena_name' },
+          artists: { $first: '$concert_details.artists' },
+          tickets_sold: { $sum: 1 },
+          total_revenue: { $sum: { $ifNull: ['$purchase_price', 0] } }
+        }
+      },
+      // 5. Project the desired fields
       {
         $project: {
           _id: 0,
           concert_id: '$_id',
-          concert_name: '$description', // Assuming description is the name
+          concert_name: 1,
           concert_date: { $dateToString: { format: "%Y-%m-%d", date: "$concert_date" } },
-          description: '$description',
-          arena_name: { $arrayElemAt: ['$arena_details.arena_name', 0] },
+          description: '$concert_name',
+          arena_name: 1,
+          tickets_sold: 1,
+          total_revenue: 1,
           artists: {
-            $reduce: {
-              input: '$artists.artist_name',
-              initialValue: '',
-              in: {
-                $cond: {
-                  if: { $eq: ['$$value', ''] },
-                  then: '$$this',
-                  else: { $concat: ['$$value', ', ', '$$this'] }
+            $cond: [
+              { $isArray: "$artists" },
+              {
+                $reduce: {
+                  input: "$artists",
+                  initialValue: "",
+                  in: {
+                    $cond: [
+                      { $eq: ["$$value", ""] },
+                      { $ifNull: ["$$this.artist_name", ""] },
+                      {
+                        $concat: ["$$value", ", ", { $ifNull: ["$$this.artist_name", ""] }]
+                      }
+                    ]
+                  }
                 }
-              }
-            }
-          },
-          tickets_sold: { $size: '$sold_tickets' }
+              },
+              ""
+            ]
+          }
         }
       },
-      // 5. Sort by tickets sold
+      // 6. Sort by tickets sold
       {
         $sort: {
           tickets_sold: -1
@@ -83,7 +99,7 @@ export class MongoAnalyticsRepository {
       }
     ];
 
-    const result = await this.concertsCollection.aggregate(pipeline).toArray();
+    const result = await this.ticketsCollection.aggregate(pipeline).toArray();
     return result as unknown as UpcomingConcertPerformance[];
   }
 } 

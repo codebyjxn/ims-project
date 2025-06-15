@@ -10,6 +10,7 @@ export interface UpcomingConcertPerformance {
     arena_name: string;
     artists: string;
     tickets_sold: number;
+    total_revenue: number;
 }
 
 export interface OrganizerAnalytics {

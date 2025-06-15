@@ -98,45 +98,45 @@ export const getTicketsCollection = async () => mongoManager.getCollection<ITick
 
 // ========== INDEX CREATION ==========
 export const createIndexes = async (): Promise<void> => {
-  try {
-    const usersCol = await getUsersCollection();
-    const artistsCol = await getArtistsCollection();
-    const arenasCol = await getArenasCollection();
-    const concertsCol = await getConcertsCollection();
-    const ticketsCol = await getTicketsCollection();
+  // try {
+  //   const usersCol = await getUsersCollection();
+  //   const artistsCol = await getArtistsCollection();
+  //   const arenasCol = await getArenasCollection();
+  //   const concertsCol = await getConcertsCollection();
+  //   const ticketsCol = await getTicketsCollection();
 
-    // User indexes - optimized for authentication and fan lookups
-    await usersCol.createIndex({ email: 1 }, { unique: true });
-    await usersCol.createIndex({ user_type: 1 });
-    await usersCol.createIndex({ 'fan_details.username': 1 }, { sparse: true, unique: true });
-    await usersCol.createIndex({ 'fan_details.preferred_genre': 1 });
-    await usersCol.createIndex({ 'fan_details.referral_code': 1 }, { sparse: true, unique: true });
+  //   // User indexes - optimized for authentication and fan lookups
+  //   await usersCol.createIndex({ email: 1 }, { unique: true });
+  //   await usersCol.createIndex({ user_type: 1 });
+  //   await usersCol.createIndex({ 'fan_details.username': 1 }, { sparse: true, unique: true });
+  //   await usersCol.createIndex({ 'fan_details.preferred_genre': 1 });
+  //   await usersCol.createIndex({ 'fan_details.referral_code': 1 }, { sparse: true, unique: true });
 
-    // Artist indexes - optimized for genre searches
-    await artistsCol.createIndex({ genre: 1 });
-    await artistsCol.createIndex({ artist_name: 1 });
+  //   // Artist indexes - optimized for genre searches
+  //   await artistsCol.createIndex({ genre: 1 });
+  //   await artistsCol.createIndex({ artist_name: 1 });
 
-    // Arena indexes - optimized for location searches
-    await arenasCol.createIndex({ arena_location: 1 });
+  //   // Arena indexes - optimized for location searches
+  //   await arenasCol.createIndex({ arena_location: 1 });
 
-    // Concert indexes - optimized for date and location searches
-    await concertsCol.createIndex({ concert_date: 1 });
-    await concertsCol.createIndex({ organizer_id: 1 });
-    await concertsCol.createIndex({ arena_id: 1 });
-    await concertsCol.createIndex({ 'artists.genre': 1 });
-    await concertsCol.createIndex({ concert_date: 1, arena_id: 1 });
+  //   // Concert indexes - optimized for date and location searches
+  //   await concertsCol.createIndex({ concert_date: 1 });
+  //   await concertsCol.createIndex({ organizer_id: 1 });
+  //   await concertsCol.createIndex({ arena_id: 1 });
+  //   await concertsCol.createIndex({ 'artists.genre': 1 });
+  //   await concertsCol.createIndex({ concert_date: 1, arena_id: 1 });
 
-    // Ticket indexes - optimized for fan queries and analytics
-    await ticketsCol.createIndex({ fan_id: 1 });
-    await ticketsCol.createIndex({ concert_id: 1 });
-    await ticketsCol.createIndex({ purchase_date: 1 });
-    await ticketsCol.createIndex({ concert_date: 1 });
-    await ticketsCol.createIndex({ fan_id: 1, concert_date: 1 });
-    await ticketsCol.createIndex({ concert_id: 1, zone_name: 1 });
+  //   // Ticket indexes - optimized for fan queries and analytics
+  //   await ticketsCol.createIndex({ fan_id: 1 });
+  //   await ticketsCol.createIndex({ concert_id: 1 });
+  //   await ticketsCol.createIndex({ purchase_date: 1 });
+  //   await ticketsCol.createIndex({ concert_date: 1 });
+  //   await ticketsCol.createIndex({ fan_id: 1, concert_date: 1 });
+  //   await ticketsCol.createIndex({ concert_id: 1, zone_name: 1 });
 
-    console.log('MongoDB indexes created successfully');
-  } catch (error) {
-    console.error('Error creating MongoDB indexes:', error);
-    throw error;
-  }
+  //   console.log('MongoDB indexes created successfully');
+  // } catch (error) {
+  //   console.error('Error creating MongoDB indexes:', error);
+  //   throw error;
+  // }
 }; 

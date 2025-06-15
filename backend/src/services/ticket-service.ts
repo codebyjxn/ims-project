@@ -99,6 +99,13 @@ export class TicketService {
 
       // Create tickets
       const tickets = [];
+      // Fetch arena details for denormalization
+      const arenaRepo = factory.getArenaRepository();
+      const arena = await arenaRepo.findById(concert.arena_id);
+      // Denormalized fields
+      const arena_name = arena?.arena_name || '';
+      const arena_location = arena?.arena_location || '';
+      const concert_name = concert.description || '';
       const ticketData = {
         fan_id: fanId,
         concert_id: purchaseRequest.concert_id,
@@ -108,7 +115,10 @@ export class TicketService {
         purchase_price: finalPricePerTicket,
         // Denormalized fields for MongoDB
         concert_date: new Date(concert.concert_date),
-        fan_username: this.extractFanUsername(fan)
+        fan_username: this.extractFanUsername(fan),
+        arena_name,
+        arena_location,
+        concert_name
       };
 
       // Create multiple tickets
