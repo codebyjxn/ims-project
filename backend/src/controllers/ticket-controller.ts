@@ -9,7 +9,7 @@ import {
   DTOValidators
 } from '../dto';
 
-export class CleanTicketController {
+export class TicketController {
 
   /**
    * Purchase tickets endpoint

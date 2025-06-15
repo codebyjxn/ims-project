@@ -6,7 +6,7 @@ import { Request, Response } from 'express';
 import { ConcertService } from '../services/concert-service';
 import { DataService } from '../services/data-service';
 
-export class CleanConcertController {
+export class ConcertController {
 
   /**
    * GET /api/concerts

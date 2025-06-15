@@ -1,6 +1,5 @@
 import { Pool } from 'pg';
 import {
-  connectMongoDB,
   getUsersCollection,
   getArtistsCollection,
   getArenasCollection,
@@ -13,6 +12,7 @@ import {
   IConcert,
   ITicket
 } from '../models/mongodb-schemas';
+import { mongoManager } from '../lib/mongodb-connection';
 import { migrationStatus } from './migration-status';
 import bcrypt from 'bcryptjs';
 
@@ -38,16 +38,16 @@ export const migrateToMongoDB = async (): Promise<{
     console.log('Starting migration from PostgreSQL to MongoDB...');
 
     // Connect to MongoDB
-    await connectMongoDB();
+    await mongoManager.connect();
 
     // Clear existing MongoDB data using native operations
     console.log('Clearing existing MongoDB data...');
     await Promise.all([
-      getUsersCollection().deleteMany({}),
-      getArtistsCollection().deleteMany({}),
-      getArenasCollection().deleteMany({}),
-      getConcertsCollection().deleteMany({}),
-      getTicketsCollection().deleteMany({})
+      (await getUsersCollection()).deleteMany({}),
+      (await getArtistsCollection()).deleteMany({}),
+      (await getArenasCollection()).deleteMany({}),
+      (await getConcertsCollection()).deleteMany({}),
+      (await getTicketsCollection()).deleteMany({})
     ]);
 
     // Create indexes
@@ -62,7 +62,7 @@ export const migrateToMongoDB = async (): Promise<{
 
     // Recreate admin user in MongoDB
     console.log('Recreating admin user in MongoDB...');
-    const usersCollection = getUsersCollection();
+    const usersCollection = await getUsersCollection();
     
     // Check if admin user already exists
     const existingAdmin = await usersCollection.findOne({ email: ADMIN_EMAIL });
@@ -140,7 +140,7 @@ const migrateUsers = async (): Promise<number> => {
     const usersResult = await pool.query('SELECT * FROM users ORDER BY user_id');
     const users = usersResult.rows;
 
-    const usersCollection = getUsersCollection();
+    const usersCollection = await getUsersCollection();
     const mongoUsers: IUser[] = [];
 
     for (const user of users) {
@@ -244,7 +244,7 @@ const migrateArtists = async (): Promise<number> => {
     const result = await pool.query('SELECT * FROM artists ORDER BY artist_id');
     const artists = result.rows;
 
-    const artistsCollection = getArtistsCollection();
+    const artistsCollection = await getArtistsCollection();
     const mongoArtists: IArtist[] = artists.map(artist => ({
       _id: artist.artist_id,
       artist_name: artist.artist_name,
@@ -284,7 +284,7 @@ const migrateArenas = async (): Promise<number> => {
     const arenasResult = await pool.query('SELECT * FROM arenas ORDER BY arena_id');
     const arenas = arenasResult.rows;
 
-    const arenasCollection = getArenasCollection();
+    const arenasCollection = await getArenasCollection();
     const mongoArenas: IArena[] = [];
 
     for (const arena of arenas) {
@@ -353,7 +353,7 @@ const migrateConcerts = async (): Promise<number> => {
     const concertsResult = await pool.query('SELECT * FROM concerts ORDER BY concert_id');
     const concerts = concertsResult.rows;
 
-    const concertsCollection = getConcertsCollection();
+    const concertsCollection = await getConcertsCollection();
     const mongoConcerts: IConcert[] = [];
 
     for (const concert of concerts) {
@@ -465,7 +465,7 @@ const migrateTickets = async (): Promise<number> => {
     const result = await pool.query(query);
     const tickets = result.rows;
 
-    const ticketsCollection = getTicketsCollection();
+    const ticketsCollection = await getTicketsCollection();
     const mongoTickets: ITicket[] = tickets.map(ticket => ({
       _id: ticket.ticket_id,
       fan_id: ticket.fan_id,

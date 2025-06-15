@@ -2,8 +2,7 @@ import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
 import { mongoManager } from '../lib/mongodb-connection'; // Use the robust singleton connection manager
 
 // ========== NATIVE MONGODB INTERFACES ==========
-// These are plain TypeScript interfaces, not ORM/ODM schemas
-
+// These are plain TypeScript interfaces
 // Users Collection Interface
 export interface IUser {
   _id: string; // user_id from SQL
@@ -128,39 +127,20 @@ export const closeMongoDB = async (): Promise<void> => {
 };
 
 // ========== COLLECTION GETTERS ==========
-export const getUsersCollection = (): Collection<IUser> => {
-  const database = getDatabase();
-  return database.collection<IUser>('users');
-};
-
-export const getArtistsCollection = (): Collection<IArtist> => {
-  const database = getDatabase();
-  return database.collection<IArtist>('artists');
-};
-
-export const getArenasCollection = (): Collection<IArena> => {
-  const database = getDatabase();
-  return database.collection<IArena>('arenas');
-};
-
-export const getConcertsCollection = (): Collection<IConcert> => {
-  const database = getDatabase();
-  return database.collection<IConcert>('concerts');
-};
-
-export const getTicketsCollection = (): Collection<ITicket> => {
-  const database = getDatabase();
-  return database.collection<ITicket>('tickets');
-};
+export const getUsersCollection = async () => mongoManager.getCollection<IUser>('users');
+export const getArtistsCollection = async () => mongoManager.getCollection<IArtist>('artists');
+export const getArenasCollection = async () => mongoManager.getCollection<IArena>('arenas');
+export const getConcertsCollection = async () => mongoManager.getCollection<IConcert>('concerts');
+export const getTicketsCollection = async () => mongoManager.getCollection<ITicket>('tickets');
 
 // ========== INDEX CREATION ==========
 export const createIndexes = async (): Promise<void> => {
   try {
-    const usersCol = getUsersCollection();
-    const artistsCol = getArtistsCollection();
-    const arenasCol = getArenasCollection();
-    const concertsCol = getConcertsCollection();
-    const ticketsCol = getTicketsCollection();
+    const usersCol = await getUsersCollection();
+    const artistsCol = await getArtistsCollection();
+    const arenasCol = await getArenasCollection();
+    const concertsCol = await getConcertsCollection();
+    const ticketsCol = await getTicketsCollection();
 
     // User indexes - optimized for authentication and fan lookups
     await usersCol.createIndex({ email: 1 }, { unique: true });
@@ -181,7 +161,6 @@ export const createIndexes = async (): Promise<void> => {
     await concertsCol.createIndex({ organizer_id: 1 });
     await concertsCol.createIndex({ arena_id: 1 });
     await concertsCol.createIndex({ 'artists.genre': 1 });
-    // Compound index for common search pattern
     await concertsCol.createIndex({ concert_date: 1, arena_id: 1 });
 
     // Ticket indexes - optimized for fan queries and analytics
@@ -189,7 +168,6 @@ export const createIndexes = async (): Promise<void> => {
     await ticketsCol.createIndex({ concert_id: 1 });
     await ticketsCol.createIndex({ purchase_date: 1 });
     await ticketsCol.createIndex({ concert_date: 1 });
-    // Compound indexes for common query patterns
     await ticketsCol.createIndex({ fan_id: 1, concert_date: 1 });
     await ticketsCol.createIndex({ concert_id: 1, zone_name: 1 });
 

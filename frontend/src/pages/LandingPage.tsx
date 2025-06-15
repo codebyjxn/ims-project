@@ -79,37 +79,37 @@ const LandingPage: React.FC = () => {
           >
             Browse Concerts
           </StyledButton>
-
+          
           {!isAuthenticated && (
             <>
-              <StyledButton
-                variant="outlined"
-                size="large"
-                onClick={() => navigate('/login')}
-                sx={{
-                  borderColor: 'white',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  },
-                }}
-              >
-                Login
-              </StyledButton>
-              <StyledButton
-                variant="outlined"
-                size="large"
-                onClick={() => navigate('/signup')}
-                sx={{
-                  borderColor: 'white',
-                  color: 'white',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  },
-                }}
-              >
-                Sign Up
-              </StyledButton>
+          <StyledButton
+            variant="outlined"
+            size="large"
+            onClick={() => navigate('/login')}
+            sx={{
+              borderColor: 'white',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Login
+          </StyledButton>
+          <StyledButton
+            variant="outlined"
+            size="large"
+            onClick={() => navigate('/signup')}
+            sx={{
+              borderColor: 'white',
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Sign Up
+          </StyledButton>
             </>
           )}
 

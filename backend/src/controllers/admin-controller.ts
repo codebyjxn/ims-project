@@ -3,7 +3,6 @@ import { seedDatabase } from '../scripts/seed-data';
 import { migrateToMongoDB } from '../services/migration-service';
 import { getPool } from '../lib/postgres';
 import { 
-  getDatabase,
   getUsersCollection,
   getArtistsCollection,
   getArenasCollection,
@@ -12,6 +11,7 @@ import {
 } from '../models/mongodb-schemas';
 import { migrationStatus } from '../services/migration-status';
 import { DatabaseFactory } from '../lib/database-factory';
+import { mongoManager } from '../lib/mongodb-connection';
 
 export class AdminController {
   
@@ -129,12 +129,11 @@ export class AdminController {
   private async getMongoDBStats(): Promise<any> {
     try {
       // Use native MongoDB driver operations
-      const usersCollection = getUsersCollection();
-      const artistsCollection = getArtistsCollection();
-      const arenasCollection = getArenasCollection();
-      const concertsCollection = getConcertsCollection();
-      const ticketsCollection = getTicketsCollection();
-      
+      const usersCollection = await getUsersCollection();
+      const artistsCollection = await getArtistsCollection();
+      const arenasCollection = await getArenasCollection();
+      const concertsCollection = await getConcertsCollection();
+      const ticketsCollection = await getTicketsCollection();
       const stats = {
         users: await usersCollection.countDocuments(),
         artists: await artistsCollection.countDocuments(),
@@ -142,14 +141,11 @@ export class AdminController {
         concerts: await concertsCollection.countDocuments(),
         tickets: await ticketsCollection.countDocuments()
       };
-
       // Get database size using native MongoDB commands
-      const db = getDatabase();
+      const db = await mongoManager.getDatabase();
       const dbStats = await db.stats();
-      
       // Calculate total records
       const totalRecords = Object.values(stats).reduce((sum: number, count) => sum + (count as number), 0);
-      
       return { 
         connected: true, 
         totalRecords,
@@ -181,7 +177,7 @@ export class AdminController {
 
       // Test MongoDB using native driver
       try {
-        const db = getDatabase();
+        const db = await mongoManager.getDatabase();
         await db.admin().ping();
         results.mongodb.connected = true;
       } catch (error) {
@@ -273,11 +269,11 @@ export class AdminController {
 
       // Clear MongoDB using native operations but preserve admin user
       try {
-        const usersCollection = getUsersCollection();
-        const artistsCollection = getArtistsCollection();
-        const arenasCollection = getArenasCollection();
-        const concertsCollection = getConcertsCollection();
-        const ticketsCollection = getTicketsCollection();
+        const usersCollection = await getUsersCollection();
+        const artistsCollection = await getArtistsCollection();
+        const arenasCollection = await getArenasCollection();
+        const concertsCollection = await getConcertsCollection();
+        const ticketsCollection = await getTicketsCollection();
         
         await Promise.all([
           usersCollection.deleteMany({ email: { $ne: 'admin@concert.com' } }), // Preserve admin
@@ -383,10 +379,10 @@ export class AdminController {
 
   private async getOrganizersAnalyticsFromMongoDB(): Promise<any[]> {
     try {
-      const usersCollection = getUsersCollection();
-      const concertsCollection = getConcertsCollection();
-      const arenasCollection = getArenasCollection();
-      const ticketsCollection = getTicketsCollection();
+      const usersCollection = await getUsersCollection();
+      const concertsCollection = await getConcertsCollection();
+      const arenasCollection = await getArenasCollection();
+      const ticketsCollection = await getTicketsCollection();
 
       // Aggregate organizers analytics using MongoDB aggregation pipeline
       const pipeline = [

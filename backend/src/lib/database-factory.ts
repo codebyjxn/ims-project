@@ -2,7 +2,6 @@ import { Pool } from 'pg';
 import { Collection, Db } from 'mongodb';
 import { getPool } from './postgres';
 import { 
-  getDatabase, 
   getUsersCollection,
   getArtistsCollection,
   getArenasCollection,
@@ -401,62 +400,62 @@ class MongoDBAdapter implements DatabaseAdapter {
   }
 
   async getUsers(): Promise<DatabaseResult> {
-    const data = await getUsersCollection().find({}).sort({ registration_date: -1 }).toArray();
+    const data = await (await getUsersCollection()).find({}).sort({ registration_date: -1 }).toArray();
     return { data };
   }
 
   async getUserById(id: string): Promise<DatabaseResult> {
-    const data = await getUsersCollection().find({ _id: id }).toArray();
+    const data = await (await getUsersCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async createUser(user: any): Promise<DatabaseResult> {
-    const result = await getUsersCollection().insertOne(user);
-    const data = await getUsersCollection().find({ _id: result.insertedId }).toArray();
+    const result = await (await getUsersCollection()).insertOne(user);
+    const data = await (await getUsersCollection()).find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
   async updateUser(id: string, updates: any): Promise<DatabaseResult> {
-    await getUsersCollection().updateOne({ _id: id }, { $set: updates });
-    const data = await getUsersCollection().find({ _id: id }).toArray();
+    await (await getUsersCollection()).updateOne({ _id: id }, { $set: updates });
+    const data = await (await getUsersCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async deleteUser(id: string): Promise<DatabaseResult> {
-    const data = await getUsersCollection().find({ _id: id }).toArray();
-    await getUsersCollection().deleteOne({ _id: id });
+    const data = await (await getUsersCollection()).find({ _id: id }).toArray();
+    await (await getUsersCollection()).deleteOne({ _id: id });
     return { data };
   }
 
   async getArtists(): Promise<DatabaseResult> {
-    const data = await getArtistsCollection().find({}).sort({ artist_name: 1 }).toArray();
+    const data = await (await getArtistsCollection()).find({}).sort({ artist_name: 1 }).toArray();
     return { data };
   }
 
   async getArtistById(id: string): Promise<DatabaseResult> {
-    const data = await getArtistsCollection().find({ _id: id }).toArray();
+    const data = await (await getArtistsCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async createArtist(artist: any): Promise<DatabaseResult> {
-    const result = await getArtistsCollection().insertOne(artist);
-    const data = await getArtistsCollection().find({ _id: result.insertedId }).toArray();
+    const result = await (await getArtistsCollection()).insertOne(artist);
+    const data = await (await getArtistsCollection()).find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
   async getArenas(): Promise<DatabaseResult> {
-    const data = await getArenasCollection().find({}).sort({ arena_name: 1 }).toArray();
+    const data = await (await getArenasCollection()).find({}).sort({ arena_name: 1 }).toArray();
     return { data };
   }
 
   async getArenaById(id: string): Promise<DatabaseResult> {
-    const data = await getArenasCollection().find({ _id: id }).toArray();
+    const data = await (await getArenasCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async createArena(arena: any): Promise<DatabaseResult> {
-    const result = await getArenasCollection().insertOne(arena);
-    const data = await getArenasCollection().find({ _id: result.insertedId }).toArray();
+    const result = await (await getArenasCollection()).insertOne(arena);
+    const data = await (await getArenasCollection()).find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
@@ -496,86 +495,85 @@ class MongoDBAdapter implements DatabaseAdapter {
       }
     ];
     
-    const data = await getConcertsCollection().aggregate(pipeline).toArray();
+    const data = await (await getConcertsCollection()).aggregate(pipeline).toArray();
     return { data };
   }
 
   async getConcertById(id: string): Promise<DatabaseResult> {
-    const data = await getConcertsCollection().find({ _id: id }).toArray();
+    const data = await (await getConcertsCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async createConcert(concert: any): Promise<DatabaseResult> {
-    const result = await getConcertsCollection().insertOne(concert);
-    const data = await getConcertsCollection().find({ _id: result.insertedId }).toArray();
+    const result = await (await getConcertsCollection()).insertOne(concert);
+    const data = await (await getConcertsCollection()).find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
   async getTickets(): Promise<DatabaseResult> {
-    const data = await getTicketsCollection().find({}).sort({ purchase_date: -1 }).toArray();
+    const data = await (await getTicketsCollection()).find({}).sort({ purchase_date: -1 }).toArray();
     return { data };
   }
 
   async getTicketById(id: string): Promise<DatabaseResult> {
-    const data = await getTicketsCollection().find({ _id: id }).toArray();
+    const data = await (await getTicketsCollection()).find({ _id: id }).toArray();
     return { data };
   }
 
   async createTicket(ticket: any): Promise<DatabaseResult> {
-    const result = await getTicketsCollection().insertOne(ticket);
-    const data = await getTicketsCollection().find({ _id: result.insertedId }).toArray();
+    const result = await (await getTicketsCollection()).insertOne(ticket);
+    const data = await (await getTicketsCollection()).find({ _id: result.insertedId }).toArray();
     return { data };
   }
 
   async getTicketsByUserId(userId: string): Promise<DatabaseResult> {
-    const data = await getTicketsCollection().find({ fan_id: userId }).sort({ purchase_date: -1 }).toArray();
+    const data = await (await getTicketsCollection()).find({ fan_id: userId }).sort({ purchase_date: -1 }).toArray();
     return { data };
   }
 
   async getStats(): Promise<any> {
     const [users, artists, arenas, concerts, tickets] = await Promise.all([
-      getUsersCollection().countDocuments(),
-      getArtistsCollection().countDocuments(),
-      getArenasCollection().countDocuments(),
-      getConcertsCollection().countDocuments(),
-      getTicketsCollection().countDocuments()
+      (await (await getUsersCollection()).countDocuments()),
+      (await (await getArtistsCollection()).countDocuments()),
+      (await (await getArenasCollection()).countDocuments()),
+      (await (await getConcertsCollection()).countDocuments()),
+      (await (await getTicketsCollection()).countDocuments())
     ]);
-
     return { users, artists, arenas, concerts, tickets };
   }
 
   // Referral system methods
   async getUserByReferralCode(referralCode: string): Promise<DatabaseResult> {
-    const data = await getUsersCollection().find({ 
+    const data = await (await getUsersCollection()).find({ 
       'fan_details.referral_code': referralCode 
     }).toArray();
     return { data };
   }
 
   async updateUserReferralPoints(userId: string, pointsToAdd: number): Promise<DatabaseResult> {
-    await getUsersCollection().updateOne(
+    await (await getUsersCollection()).updateOne(
       { _id: userId },
       { $inc: { 'fan_details.referral_points': pointsToAdd } }
     );
-    const data = await getUsersCollection().find({ _id: userId }).toArray();
+    const data = await (await getUsersCollection()).find({ _id: userId }).toArray();
     return { data };
   }
 
   async markReferralCodeUsed(fanId: string): Promise<DatabaseResult> {
-    await getUsersCollection().updateOne(
+    await (await getUsersCollection()).updateOne(
       { _id: fanId },
       { $set: { 'fan_details.referral_code_used': true } }
     );
-    const data = await getUsersCollection().find({ _id: fanId }).toArray();
+    const data = await (await getUsersCollection()).find({ _id: fanId }).toArray();
     return { data };
   }
 
   async updateFanReferrer(fanId: string, referrerId: string): Promise<DatabaseResult> {
-    await getUsersCollection().updateOne(
+    await (await getUsersCollection()).updateOne(
       { _id: fanId },
       { $set: { 'fan_details.referred_by': referrerId } }
     );
-    const data = await getUsersCollection().find({ _id: fanId }).toArray();
+    const data = await (await getUsersCollection()).find({ _id: fanId }).toArray();
     return { data };
   }
 
@@ -586,7 +584,7 @@ class MongoDBAdapter implements DatabaseAdapter {
   }
 
   async getTicketsByConcertAndZone(concertId: string, zoneName: string): Promise<DatabaseResult> {
-    const data = await getTicketsCollection().find({ 
+    const data = await (await getTicketsCollection()).find({ 
       concert_id: concertId, 
       zone_name: zoneName 
     }).toArray();
@@ -609,12 +607,12 @@ class MongoDBAdapter implements DatabaseAdapter {
       { $sort: { _id: 1 } }
     ];
     
-    const data = await getTicketsCollection().aggregate(pipeline).toArray();
+    const data = await (await getTicketsCollection()).aggregate(pipeline).toArray();
     return { data };
   }
 
   async getUsersReferredBy(fanId: string): Promise<DatabaseResult> {
-    const data = await getUsersCollection().find({ 
+    const data = await (await getUsersCollection()).find({ 
       'fan_details.referred_by': fanId 
     }).sort({ registration_date: -1 }).toArray();
     return { data };
@@ -622,14 +620,14 @@ class MongoDBAdapter implements DatabaseAdapter {
 
   async getTicketsFromReferrals(fanId: string): Promise<DatabaseResult> {
     // First get all users referred by this fan
-    const referredUsers = await getUsersCollection().find({ 
+    const referredUsers = await (await getUsersCollection()).find({ 
       'fan_details.referred_by': fanId 
     }).toArray();
     
     const referredUserIds = referredUsers.map((user: any) => user._id);
     
     // Then get tickets purchased by those users with referral code used
-    const data = await getTicketsCollection().find({ 
+    const data = await (await getTicketsCollection()).find({ 
       fan_id: { $in: referredUserIds },
       referral_code_used: true
     }).toArray();
