@@ -52,6 +52,6 @@ export const downloadTicketPDF = (ticket: UserTicket) => {
   doc.setFontSize(10);
   doc.text('This ticket is non-transferable. Please present this at the entrance.', doc.internal.pageSize.width / 2, 140, { align: 'center' });
   
-  // Save the PDF
-  doc.save(`ticket-${concertName.replace(/\s/g, '_')}-${ticket.ticket_id.substring(0, 8)}.pdf`);
+  // Save the PDF with ticket ID as filename
+  doc.save(`${ticket.ticket_id}.pdf`);
 }; 

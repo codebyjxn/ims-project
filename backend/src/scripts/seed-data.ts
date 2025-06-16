@@ -398,7 +398,7 @@ const seedConcerts = async (organizers: Organizer[], arenas: Arena[]): Promise<C
       organizer_id: organizer.user_id,
       concert_date: concertDate,
       time: concertDate.toTimeString().split(' ')[0],
-      description: faker.lorem.paragraph(),
+      description: faker.lorem.sentences({ min: 1, max: 3 }, ' '),
       arena_id: arena.arena_id
     };
     
