@@ -1,16 +1,12 @@
-# Stage 1: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install dependencies including devDependencies (like typescript)
 COPY package*.json ./
 RUN npm ci
 
-# Copy source files and build
 COPY . .
 RUN npm run build
 
-# Stage 2: Run
 FROM node:20-alpine
 WORKDIR /app
 
@@ -20,7 +16,4 @@ COPY --from=builder /app/package*.json ./
 RUN npm ci --only=production
 
 ENV NODE_ENV=production
-# COPY entrypoint.sh /app/entrypoint.sh
-# RUN chmod +x /app/entrypoint.sh
-# ENTRYPOINT ["/app/entrypoint.sh"]
 CMD node dist/scripts/create-admin.js && node dist/index.js

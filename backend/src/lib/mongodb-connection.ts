@@ -1,7 +1,3 @@
-// src/lib/mongodb-connection.ts
-// ========== MONGODB CONNECTION MANAGER ==========
-// Robust connection management for MongoDB
-
 import { MongoClient, Db, Collection, Document } from 'mongodb';
 
 class MongoDBConnectionManager {

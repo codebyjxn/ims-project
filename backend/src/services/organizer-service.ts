@@ -8,7 +8,7 @@ export class OrganizerService {
     const concerts = await organizerRepo.findConcertsByOrganizer(organizerId);
     return concerts.map((concert: any) => ({
       concert_id: concert.concert_id,
-      date: concert.concert_date,
+      date: concert.date || concert.concert_date,
       time: concert.time,
       description: concert.description,
       arena: {

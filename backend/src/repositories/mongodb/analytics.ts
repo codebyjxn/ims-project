@@ -3,14 +3,10 @@ import { mongoManager } from '../../lib/mongodb-connection';
 import { UpcomingConcertPerformance } from '../postgres/analytics'; // Re-using the same interface
 
 export class MongoAnalyticsRepository {
-  private concertsCollection: Collection<any>;
   private ticketsCollection: Collection<any>;
-  private arenasCollection: Collection<any>;
 
   private constructor(db: Db) {
-    this.concertsCollection = db.collection('concerts');
     this.ticketsCollection = db.collection('tickets');
-    this.arenasCollection = db.collection('arenas');
   }
 
   static async create(): Promise<MongoAnalyticsRepository> {
@@ -25,15 +21,12 @@ export class MongoAnalyticsRepository {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Aggregate directly from tickets, using denormalized fields
     const pipeline = [
-      // 1. Filter for upcoming concerts (by ticket's concert_date)
       {
         $match: {
           concert_date: { $gte: today }
         }
       },
-      // 2. Lookup concert details to get artists
       {
         $lookup: {
           from: 'concerts',
@@ -42,9 +35,7 @@ export class MongoAnalyticsRepository {
           as: 'concert_details'
         }
       },
-      // 3. Unwind concert_details
       { $unwind: '$concert_details' },
-      // 4. Group by concert_id and denormalized fields
       {
         $group: {
           _id: '$concert_id',
@@ -57,7 +48,6 @@ export class MongoAnalyticsRepository {
           total_revenue: { $sum: { $ifNull: ['$purchase_price', 0] } }
         }
       },
-      // 5. Project the desired fields
       {
         $project: {
           _id: 0,
@@ -91,7 +81,6 @@ export class MongoAnalyticsRepository {
           }
         }
       },
-      // 6. Sort by tickets sold
       {
         $sort: {
           tickets_sold: -1

@@ -42,8 +42,9 @@ export class PostgresOrganizerRepository implements IOrganizerRepository {
     const result = await this.pool.query(query, [organizerId]);
     const concerts = result.rows;
 
-    // Get artists for each concert
+    // Get artists and zone pricing for each concert
     for (const concert of concerts) {
+      // Get artists
       const artistQuery = `
         SELECT ar.artist_name as name, ar.genre
         FROM concert_features_artists cfa
@@ -52,6 +53,16 @@ export class PostgresOrganizerRepository implements IOrganizerRepository {
       `;
       const artistResult = await this.pool.query(artistQuery, [concert.concert_id]);
       concert.artists = artistResult.rows;
+
+      // Get zone pricing
+      const zonePricingQuery = `
+        SELECT zone_name, price
+        FROM concert_zone_pricing
+        WHERE concert_id = $1
+        ORDER BY zone_name
+      `;
+      const zonePricingResult = await this.pool.query(zonePricingQuery, [concert.concert_id]);
+      concert.zone_pricing = zonePricingResult.rows;
     }
     return concerts;
   }

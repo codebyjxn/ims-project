@@ -409,18 +409,49 @@ export class PostgresConcertRepository implements IConcertRepository {
   }
 
   async findByDate(date: Date): Promise<any[]> {
-    const result = await this.pool.query(
-      'SELECT * FROM concerts WHERE concert_date = $1 ORDER BY time',
-      [date]
-    );
+    const result = await this.pool.query(`
+      SELECT
+        c.concert_id,
+        c.concert_date,
+        c.time,
+        c.description,
+        c.organizer_id,
+        c.arena_id,
+        json_agg(DISTINCT jsonb_build_object('artist_id', art.artist_id, 'artist_name', art.artist_name, 'genre', art.genre)) as artists
+      FROM concerts c
+      LEFT JOIN concert_features_artists cfa ON c.concert_id = cfa.concert_id
+      LEFT JOIN artists art ON cfa.artist_id = art.artist_id
+      WHERE c.concert_date = $1
+      GROUP BY c.concert_id, c.concert_date, c.time, c.description, c.organizer_id, c.arena_id
+      ORDER BY c.time
+    `, [date]);
     return result.rows;
   }
 
   async findByOrganizer(organizerId: string): Promise<any[]> {
-    const result = await this.pool.query(
-      'SELECT * FROM concerts WHERE organizer_id = $1 ORDER BY concert_date',
-      [organizerId]
-    );
+    const result = await this.pool.query(`
+      SELECT
+        c.concert_id,
+        c.concert_date,
+        c.time,
+        c.description,
+        c.organizer_id,
+        c.arena_id,
+        a.arena_name,
+        a.arena_location,
+        org.organization_name,
+        json_agg(DISTINCT jsonb_build_object('artist_id', art.artist_id, 'artist_name', art.artist_name, 'genre', art.genre)) as artists,
+        json_agg(DISTINCT jsonb_build_object('zone_name', czp.zone_name, 'price', czp.price)) as zone_pricing
+      FROM concerts c
+      LEFT JOIN arenas a ON c.arena_id = a.arena_id
+      LEFT JOIN organizers org ON c.organizer_id = org.user_id
+      LEFT JOIN concert_features_artists cfa ON c.concert_id = cfa.concert_id
+      LEFT JOIN artists art ON cfa.artist_id = art.artist_id
+      LEFT JOIN concert_zone_pricing czp ON c.concert_id = czp.concert_id
+      WHERE c.organizer_id = $1
+      GROUP BY c.concert_id, a.arena_id, org.user_id
+      ORDER BY c.concert_date;
+    `, [organizerId]);
     return result.rows;
   }
 

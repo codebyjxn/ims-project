@@ -14,7 +14,7 @@ A modern concert booking system that lets fans buy tickets for concerts and orga
    ```bash
    docker-compose -f docker-compose.prod.yml up -d
    ```
-2. **Access the application development**
+2. **Access the application production**
 - 🌐 **Frontend**: https://localhost
 
 1. **Start the application in development**
